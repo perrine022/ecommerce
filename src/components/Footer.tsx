@@ -1,0 +1,57 @@
+'use client';
+
+import Image from 'next/image';
+
+export default function Footer() {
+  return (
+    <footer className="bg-white border-t border-gray-200 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="grid md:grid-cols-4 gap-8 mb-8">
+          <div>
+            <div className="mb-4">
+              <Image
+                src="/logotrade.png"
+                alt="TradeFood"
+                width={150}
+                height={50}
+                className="h-8 w-auto"
+              />
+            </div>
+            <p className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
+              Votre spécialiste en produits exotiques du monde entier. Qualité, authenticité et goût garantis.
+            </p>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-4" style={{ color: '#172867' }}>Navigation</h4>
+            <ul className="space-y-2 text-sm" style={{ color: '#172867', opacity: 0.7 }}>
+              <li><a href="/" className="hover:opacity-80 transition-opacity">Accueil</a></li>
+              <li><a href="/#produits" className="hover:opacity-80 transition-opacity">Produits</a></li>
+              <li><a href="/compte" className="hover:opacity-80 transition-opacity">Mon Compte</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-4" style={{ color: '#172867' }}>Informations</h4>
+            <ul className="space-y-2 text-sm" style={{ color: '#172867', opacity: 0.7 }}>
+              <li><a href="/societe" className="hover:opacity-80 transition-opacity">À propos</a></li>
+              <li><a href="#" className="hover:opacity-80 transition-opacity">Livraison</a></li>
+              <li><a href="#" className="hover:opacity-80 transition-opacity">CGV</a></li>
+              <li><a href="#" className="hover:opacity-80 transition-opacity">Mentions légales</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-4" style={{ color: '#172867' }}>Contact</h4>
+            <ul className="space-y-2 text-sm" style={{ color: '#172867', opacity: 0.7 }}>
+              <li>Email: contact@tradefood.fr</li>
+              <li>Tél: 01 23 45 67 89</li>
+              <li>Lun-Ven: 9h-18h</li>
+            </ul>
+          </div>
+        </div>
+        <div className="border-t border-gray-200 pt-8 text-center text-sm" style={{ color: '#172867', opacity: 0.7 }}>
+          © 2025 TradeFood. Tous droits réservés.
+        </div>
+      </div>
+    </footer>
+  );
+}
+
