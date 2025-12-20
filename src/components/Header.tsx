@@ -61,18 +61,24 @@ export default function Header() {
               </button>
               
               {isCategoryMenuOpen && (
-                <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2">
-                  {categories.map((category) => (
-                    <Link
-                      key={category.id}
-                      href={`/categorie/${category.slug}`}
-                      className="block px-4 py-2 text-sm hover:bg-gray-50 transition-colors"
-                      style={{ color: '#172867' }}
-                      onClick={() => setIsCategoryMenuOpen(false)}
-                    >
-                      {category.name}
-                    </Link>
-                  ))}
+                <div 
+                  className="absolute top-full left-0 pt-2 w-64"
+                  onMouseEnter={() => setIsCategoryMenuOpen(true)}
+                  onMouseLeave={() => setIsCategoryMenuOpen(false)}
+                >
+                  <div className="bg-white rounded-lg shadow-lg border border-gray-200 py-2">
+                    {categories.map((category) => (
+                      <Link
+                        key={category.id}
+                        href={`/categorie/${category.slug}`}
+                        className="block px-4 py-2 text-sm hover:bg-gray-50 transition-colors"
+                        style={{ color: '#172867' }}
+                        onClick={() => setIsCategoryMenuOpen(false)}
+                      >
+                        {category.name}
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
