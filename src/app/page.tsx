@@ -1,3 +1,9 @@
+/**
+ * @author Perrine Honoré
+ * @date 2025-12-29
+ * Page d'accueil principale
+ */
+
 'use client';
 
 import Header from '@/components/Header';

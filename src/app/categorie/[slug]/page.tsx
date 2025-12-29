@@ -1,10 +1,17 @@
+/**
+ * @author Perrine Honoré
+ * @date 2025-12-29
+ * Page de catégorie avec produits filtrés
+ */
+
 'use client';
 
-import { use } from 'react';
+import { use, useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft, Star, ShoppingCart } from 'lucide-react';
-import { getProductsByCategory, categories } from '@/lib/products';
+import { productApi } from '@/services/api';
+import { categories } from '@/lib/products';
 import { Product } from '@/types/product';
 import { useCart } from '@/contexts/CartContext';
 import Header from '@/components/Header';
@@ -12,7 +19,26 @@ import Header from '@/components/Header';
 export default function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const category = categories.find(c => c.slug === slug);
-  const products = getProductsByCategory(slug);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { addItem } = useCart();
+
+  useEffect(() => {
+    loadProducts();
+  }, [slug]);
+
+  const loadProducts = async () => {
+    setLoading(true);
+    try {
+      const response = await productApi.getAll({ category: slug });
+      setProducts(response.products || []);
+    } catch (error) {
+      console.error('Failed to load products:', error);
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!category) {
     return (
@@ -25,6 +51,17 @@ export default function CategoryPage({ params }: { params: Promise<{ slug: strin
               Retour à l'accueil
             </Link>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Header />
+        <div className="pt-20 px-4 flex items-center justify-center min-h-[60vh]">
+          <p style={{ color: '#172867' }}>Chargement des produits...</p>
         </div>
       </div>
     );

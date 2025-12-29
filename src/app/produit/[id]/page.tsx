@@ -1,20 +1,56 @@
+/**
+ * @author Perrine Honoré
+ * @date 2025-12-29
+ * Page de détail d'un produit
+ */
+
 'use client';
 
-import { use, useState } from 'react';
+import { use, useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft, Star, ShoppingCart, Plus, Minus, Check, Truck, Shield, RotateCcw } from 'lucide-react';
-import { getProductById } from '@/lib/products';
+import { productApi } from '@/services/api';
+import { Product } from '@/types/product';
 import { useCart } from '@/contexts/CartContext';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const product = getProductById(id);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const { addItem } = useCart();
+
+  useEffect(() => {
+    loadProduct();
+  }, [id]);
+
+  const loadProduct = async () => {
+    setLoading(true);
+    try {
+      const response = await productApi.getById(id);
+      setProduct(response.product);
+    } catch (error) {
+      console.error('Failed to load product:', error);
+      setProduct(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Header />
+        <div className="pt-20 px-4 flex items-center justify-center min-h-[60vh]">
+          <p style={{ color: '#172867' }}>Chargement du produit...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!product) {
     return (

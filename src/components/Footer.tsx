@@ -1,3 +1,9 @@
+/**
+ * @author Perrine Honoré
+ * @date 2025-12-29
+ * Composant Footer réutilisable
+ */
+
 'use client';
 
 import Image from 'next/image';

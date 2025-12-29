@@ -1,3 +1,9 @@
+/**
+ * @author Perrine Honoré
+ * @date 2025-12-29
+ * Composant Header avec navigation et gestion de l'authentification
+ */
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,12 +12,14 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { categories } from '@/lib/products';
 import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
   const { getItemCount } = useCart();
+  const { isAuthenticated, user, logout } = useAuth();
   const cartCount = getItemCount();
 
   useEffect(() => {
@@ -137,12 +145,25 @@ export default function Header() {
             </Link>
 
             {/* Account */}
-            <Link 
-              href="/compte"
-              className="hidden md:flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 transition-colors"
-            >
-              <User className="w-5 h-5" style={{ color: '#172867' }} />
-            </Link>
+            {isAuthenticated ? (
+              <Link 
+                href="/compte"
+                className="hidden md:flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title={user?.email}
+              >
+                <User className="w-5 h-5" style={{ color: '#172867' }} />
+                <span className="text-sm font-medium" style={{ color: '#172867' }}>
+                  {user?.firstName}
+                </span>
+              </Link>
+            ) : (
+              <Link 
+                href="/connexion"
+                className="hidden md:flex items-center justify-center px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <User className="w-5 h-5" style={{ color: '#172867' }} />
+              </Link>
+            )}
 
             {/* Mobile Menu Button */}
             <button
@@ -225,15 +246,39 @@ export default function Header() {
                 <ShoppingCart className="w-5 h-5" />
                 Panier
               </Link>
+            {isAuthenticated ? (
+              <>
+                <Link 
+                  href="/compte"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center gap-2 text-base font-medium"
+                  style={{ color: '#172867' }}
+                >
+                  <User className="w-5 h-5" />
+                  Mon Compte ({user?.firstName})
+                </Link>
+                <button
+                  onClick={() => {
+                    logout();
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-2 text-base font-medium"
+                  style={{ color: '#A0A12F' }}
+                >
+                  Déconnexion
+                </button>
+              </>
+            ) : (
               <Link 
-                href="/compte"
+                href="/connexion"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="flex items-center gap-2 text-base font-medium"
                 style={{ color: '#172867' }}
               >
                 <User className="w-5 h-5" />
-                Mon Compte
+                Se connecter
               </Link>
+            )}
             </div>
           </nav>
         </div>

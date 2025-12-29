@@ -1,16 +1,59 @@
+/**
+ * @author Perrine Honoré
+ * @date 2025-12-29
+ * Section Hero avec produit en vedette
+ */
+
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, Star, ShoppingCart } from 'lucide-react';
-import { getFeaturedProduct } from '@/lib/products';
+import { productApi } from '@/services/api';
+import { Product } from '@/types/product';
 import { useCart } from '@/contexts/CartContext';
 
 export default function HeroSection() {
-  const featuredProduct = getFeaturedProduct();
+  const [featuredProduct, setFeaturedProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
   const { addItem } = useCart();
 
-  if (!featuredProduct) return null;
+  useEffect(() => {
+    loadFeaturedProduct();
+  }, []);
+
+  const loadFeaturedProduct = async () => {
+    setLoading(true);
+    try {
+      // Récupérer les produits et prendre le premier avec featured: true, sinon le premier produit
+      const response = await productApi.getAll({ limit: 100 });
+      const featured = response.products?.find((p: Product) => p.featured) || response.products?.[0] || null;
+      setFeaturedProduct(featured);
+    } catch (error) {
+      console.error('Failed to load featured product:', error);
+      setFeaturedProduct(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <section className="pt-20 pb-16 px-4 sm:px-6 lg:px-8 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <p style={{ color: '#172867', opacity: 0.7 }}>Chargement du produit en vedette...</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (!featuredProduct) {
+    // Si aucun produit n'est disponible, on affiche un message ou on cache la section
+    return null;
+  }
 
   return (
     <section className="pt-20 pb-16 px-4 sm:px-6 lg:px-8 bg-white">
@@ -102,8 +145,8 @@ export default function HeroSection() {
           {/* Right side - Promotional Image */}
           <div className="relative h-[550px] lg:h-[650px] rounded-2xl overflow-hidden shadow-xl">
             <Image
-              src="https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=1200&h=800&fit=crop&q=80"
-              alt="Produits exotiques TradeFood"
+              src={featuredProduct.image || "https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=1200&h=800&fit=crop&q=80"}
+              alt={featuredProduct.title}
               fill
               className="object-cover"
               priority

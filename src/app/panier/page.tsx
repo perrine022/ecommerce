@@ -1,3 +1,9 @@
+/**
+ * @author Perrine Honoré
+ * @date 2025-12-29
+ * Page du panier d'achat
+ */
+
 'use client';
 
 import Link from 'next/link';
@@ -118,12 +124,13 @@ export default function CartPage() {
                     </span>
                   </div>
                 </div>
-                <button
-                  className="w-full py-4 rounded-lg font-semibold text-white transition-all hover:opacity-90"
+                <Link
+                  href="/checkout"
+                  className="block w-full text-center py-4 rounded-lg font-semibold text-white transition-all hover:opacity-90"
                   style={{ backgroundColor: '#172867' }}
                 >
                   Passer la commande
-                </button>
+                </Link>
               </div>
             </div>
           </div>

@@ -1,5 +1,8 @@
 # TradeFood - Site E-commerce de Produits Exotiques
 
+**Auteur :** Perrine Honoré  
+**Date :** 29 décembre 2025
+
 Site e-commerce moderne pour **TradeFood**, une boutique en ligne spécialisée dans les produits exotiques du monde entier : fruits exotiques, épices, thés, chocolats, huiles et cafés rares.
 
 ## 🌟 À propos
@@ -22,6 +25,7 @@ Site e-commerce moderne pour **TradeFood**, une boutique en ligne spécialisée 
 - **[TypeScript](https://www.typescriptlang.org/)** - Typage statique pour JavaScript
 - **[Tailwind CSS 4](https://tailwindcss.com/)** - Framework CSS utilitaire
 - **[Lucide React](https://lucide.dev/)** - Icônes modernes et élégantes
+- **[Stripe](https://stripe.com/)** - Paiement en ligne sécurisé
 - **[Unsplash](https://unsplash.com/)** - Images de produits libres de droits
 
 ## 📦 Installation
@@ -30,6 +34,7 @@ Site e-commerce moderne pour **TradeFood**, une boutique en ligne spécialisée 
 
 - Node.js 18+ 
 - npm, yarn, pnpm ou bun
+- Backend API disponible sur `http://localhost:8080`
 
 ### Installation des dépendances
 
@@ -41,6 +46,15 @@ yarn install
 pnpm install
 # ou
 bun install
+```
+
+### Configuration
+
+Créer un fichier `.env.local` à la racine du projet :
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8080
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_votre_cle_stripe
 ```
 
 ## 🛠️ Développement
@@ -66,29 +80,48 @@ La page se met à jour automatiquement lorsque vous modifiez les fichiers.
 ```
 ecommerce/
 ├── public/                 # Fichiers statiques (images, logos, etc.)
+│   └── logotrade.png       # Logo TradeFood
 ├── src/
 │   ├── app/
 │   │   ├── globals.css     # Styles globaux et variables CSS
 │   │   ├── layout.tsx       # Layout principal avec métadonnées
 │   │   ├── page.tsx        # Page d'accueil principale
+│   │   ├── connexion/       # Page de connexion
+│   │   ├── inscription/    # Page d'inscription
+│   │   ├── reset-password/ # Réinitialisation mot de passe
 │   │   ├── produit/[id]/   # Pages de fiches produits
 │   │   ├── categorie/[slug]/ # Pages de catégories
 │   │   ├── compte/         # Espace client
-│   │   └── panier/         # Page panier
+│   │   │   └── commande/[id]/ # Détail d'une commande
+│   │   ├── panier/         # Page panier
+│   │   └── checkout/       # Checkout et paiement
+│   │       ├── page.tsx    # Checkout multi-étapes
+│   │       ├── payment/     # Paiement Stripe
+│   │       └── success/     # Confirmation de commande
 │   ├── components/         # Composants React réutilisables
 │   │   ├── Header.tsx      # En-tête avec navigation
 │   │   ├── HeroSection.tsx # Section hero avec produit vedette
 │   │   ├── ProductsSection.tsx # Section produits avec filtres
-│   │   └── Footer.tsx      # Footer réutilisable
-│   ├── contexts/           # Contextes React
-│   │   ├── CartContext.tsx # Gestion du panier
+│   │   ├── Footer.tsx      # Footer réutilisable
+│   │   ├── ProtectedRoute.tsx # Protection de routes
 │   │   └── Providers.tsx   # Provider pour les contextes
+│   ├── contexts/           # Contextes React
+│   │   ├── AuthContext.tsx # Gestion de l'authentification
+│   │   └── CartContext.tsx # Gestion du panier (sync backend)
+│   ├── services/           # Services API
+│   │   └── api.ts          # Service API complet avec tous les endpoints
 │   ├── lib/                # Utilitaires et données
-│   │   └── products.ts     # Données des produits
+│   │   └── products.ts     # Données des produits (fallback)
 │   └── types/              # Types TypeScript
-│       └── product.ts      # Types pour les produits
+│       ├── product.ts      # Types pour les produits
+│       ├── user.ts         # Types utilisateur
+│       ├── order.ts         # Types commandes
+│       ├── address.ts       # Types adresses
+│       └── shipping.ts      # Types livraison
 ├── package.json
-└── README.md
+├── README.md
+├── API_DOCUMENTATION.md     # Documentation complète des API
+└── IMPLEMENTATION.md        # Documentation d'implémentation
 ```
 
 ## 🎨 Design & Couleurs
@@ -100,54 +133,73 @@ Le site utilise une palette de couleurs professionnelle :
 - **Fond** : Blanc
 - **Texte** : `#172867` avec différentes opacités
 
-## ✨ Fonctionnalités
+## ✨ Fonctionnalités Complètes
 
-### Navigation
-- 🏠 **Page d'accueil** avec hero section mettant en avant un produit vedette
-- 🛍️ **Catalogue produits** avec filtrage par catégories
-- 📦 **Fiches produits** détaillées avec galerie d'images
-- 🛒 **Panier d'achat** avec gestion des quantités
-- 👤 **Espace client** avec profil, commandes, favoris, adresses
-- 🔍 **Navigation par catégories** dans le header avec menu déroulant
-- 📱 **Design responsive** pour mobile, tablette et desktop
-- ✨ **Animations** et transitions fluides
+### 🔐 Authentification
+- ✅ Inscription avec création automatique client Sellsy
+- ✅ Connexion avec token JWT
+- ✅ Réinitialisation de mot de passe
+- ✅ Gestion de session persistante
+- ✅ Protection des routes nécessitant authentification
 
-### Pages disponibles
-- `/` - Page d'accueil
-- `/produit/[id]` - Fiche produit individuelle
-- `/categorie/[slug]` - Page de catégorie avec produits filtrés
-- `/panier` - Panier d'achat
-- `/compte` - Espace client
-- `/societe` - Page société
-- `/contact` - Page contact
-- `/promotions` - Page promotions
-- `/nouveautes` - Page nouveautés
+### 🛍️ Catalogue Produits
+- ✅ Listing produits avec pagination
+- ✅ Recherche textuelle
+- ✅ Filtres avancés (prix, catégorie, tri)
+- ✅ Fiche produit détaillée
+- ✅ Synchronisation produits depuis Sellsy
 
-## 🛍️ Fonctionnalités E-commerce
+### 🛒 Panier & Checkout
+- ✅ Panier synchronisé avec le backend
+- ✅ Gestion des quantités
+- ✅ Calcul automatique des totaux
+- ✅ Checkout en 3 étapes :
+  1. Sélection des adresses (facturation + livraison)
+  2. Choix de la méthode de livraison
+  3. Récapitulatif et paiement
 
-- Gestion du panier avec contexte React
-- Calcul automatique des totaux
-- Livraison gratuite à partir de 50€
-- Système de notation et avis produits
-- Produits en vedette
-- Promotions et réductions
-- Filtrage par catégories
-- Pages de catégories dynamiques
-- Header et Footer sur toutes les pages
+### 💳 Paiement
+- ✅ Intégration Stripe complète
+- ✅ Payment Intents sécurisés
+- ✅ Gestion des webhooks
+- ✅ Confirmation de commande
 
-## 🚀 Déploiement
+### 👤 Espace Client
+- ✅ Profil utilisateur (lecture/édition)
+- ✅ Historique des commandes
+- ✅ Détail de chaque commande
+- ✅ Gestion des adresses (CRUD complet)
+- ✅ Favoris
+- ✅ Paramètres
 
-### Vercel (recommandé)
+### 📦 Commandes
+- ✅ Création automatique dans Sellsy (devis → commande → facture)
+- ✅ Synchronisation depuis Sellsy
+- ✅ Suivi des statuts
+- ✅ Numéros de suivi
 
-Le moyen le plus simple de déployer votre application Next.js est d'utiliser [Vercel](https://vercel.com/new) :
+## 🔌 Intégration Backend
 
-1. Connectez votre repository GitHub
-2. Vercel détectera automatiquement Next.js
-3. Cliquez sur "Deploy"
+### Configuration API
 
-### Autres plateformes
+L'application communique avec le backend via l'API REST sur `http://localhost:8080` (configurable via `NEXT_PUBLIC_API_URL`).
 
-Consultez la [documentation de déploiement Next.js](https://nextjs.org/docs/app/building-your-application/deploying) pour plus de détails.
+### Endpoints utilisés
+
+Tous les endpoints sont documentés dans `API_DOCUMENTATION.md`. Voici les principaux :
+
+- **Authentification** : `/api/v1/auth/*`
+- **Produits** : `/api/v1/products/*`
+- **Panier** : `/api/v1/cart/*`
+- **Commandes** : `/api/v1/orders/*`
+- **Utilisateurs** : `/api/v1/users/*`
+
+### Authentification
+
+Le token JWT est automatiquement inclus dans les headers de toutes les requêtes authentifiées :
+```
+Authorization: Bearer <token>
+```
 
 ## 📝 Scripts disponibles
 
@@ -158,26 +210,42 @@ npm run start    # Démarre le serveur de production
 npm run lint     # Lance le linter ESLint
 ```
 
+## 🚀 Déploiement
+
+### Vercel (recommandé)
+
+Le moyen le plus simple de déployer votre application Next.js est d'utiliser [Vercel](https://vercel.com/new) :
+
+1. Connectez votre repository GitHub
+2. Vercel détectera automatiquement Next.js
+3. Configurez les variables d'environnement :
+   - `NEXT_PUBLIC_API_URL` : URL de votre API backend
+   - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` : Clé publique Stripe
+4. Cliquez sur "Deploy"
+
+### Autres plateformes
+
+Consultez la [documentation de déploiement Next.js](https://nextjs.org/docs/app/building-your-application/deploying) pour plus de détails.
+
 ## 📸 Images
 
-Les images des produits proviennent de [Unsplash](https://unsplash.com/), une plateforme d'images libres de droits. Les images sont chargées dynamiquement depuis Unsplash. La configuration Next.js permet l'utilisation d'images externes depuis Unsplash.
+Les images des produits proviennent de [Unsplash](https://unsplash.com/), une plateforme d'images libres de droits. Les images sont chargées dynamiquement depuis Unsplash.
 
-## 🎯 Fonctionnalités principales
+## 📚 Documentation
 
-- **Hero Section** : Mise en avant d'un produit vedette avec image promotionnelle
-- **Catalogue** : Affichage de tous les produits avec filtrage par catégories
-- **Fiche produit** : Page détaillée avec galerie d'images, informations complètes et ajout au panier
-- **Panier** : Gestion complète du panier avec modification des quantités
-- **Espace client** : Profil, commandes, favoris, adresses et paramètres
-- **Navigation** : Menu avec catégories, société, contact, promotions et nouveautés
+- **API_DOCUMENTATION.md** : Documentation complète de tous les endpoints API
+- **IMPLEMENTATION.md** : Détails d'implémentation et checklist backend
 
 ## 🤝 Contribution
+
+**Auteur :** Perrine Honoré  
+**Date de création :** 29 décembre 2025
 
 Ce projet est privé et personnel. Pour toute question ou suggestion, n'hésitez pas à ouvrir une issue.
 
 ## 📄 Licence
 
-Tous droits réservés © 2025 TradeFood
+Tous droits réservés © 2025 TradeFood - Perrine Honoré
 
 ---
 

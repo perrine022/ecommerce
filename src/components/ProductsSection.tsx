@@ -1,22 +1,76 @@
+/**
+ * @author Perrine Honoré
+ * @date 2025-12-29
+ * Section produits avec recherche, filtres et pagination
+ */
+
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Star, ShoppingCart } from 'lucide-react';
-import { products, categories } from '@/lib/products';
+import { Star, ShoppingCart, Search, SlidersHorizontal } from 'lucide-react';
+import { categories } from '@/lib/products';
 import { Product } from '@/types/product';
 import { useCart } from '@/contexts/CartContext';
+import { productApi } from '@/services/api';
 
 export default function ProductsSection() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    minPrice: '',
+    maxPrice: '',
+    sortBy: 'name',
+    order: 'asc' as 'asc' | 'desc',
+  });
 
-  const filteredProducts = selectedCategory === 'all' 
-    ? products 
-    : products.filter(p => p.category === selectedCategory);
+  useEffect(() => {
+    loadProducts();
+  }, [selectedCategory, searchQuery, filters]);
+
+  const loadProducts = async () => {
+    setLoading(true);
+    try {
+      const params: any = {
+        page: 1,
+        limit: 20,
+      };
+
+      if (selectedCategory !== 'all') {
+        params.category = selectedCategory;
+      }
+
+      if (searchQuery) {
+        params.search = searchQuery;
+      }
+
+      if (filters.minPrice) {
+        params.minPrice = parseFloat(filters.minPrice);
+      }
+
+      if (filters.maxPrice) {
+        params.maxPrice = parseFloat(filters.maxPrice);
+      }
+
+      params.sortBy = filters.sortBy;
+      params.order = filters.order;
+
+      const response = await productApi.getAll(params);
+      setProducts(response.products || []);
+    } catch (error) {
+      console.error('Failed to load products:', error);
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
+    <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white" id="produits">
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-12">
@@ -26,6 +80,92 @@ export default function ProductsSection() {
           <p className="text-lg" style={{ color: '#172867', opacity: 0.7 }}>
             Découvrez notre sélection de produits rares et authentiques du monde entier
           </p>
+        </div>
+
+        {/* Search and Filters */}
+        <div className="mb-8 space-y-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5" style={{ color: '#172867', opacity: 0.5 }} />
+              <input
+                type="text"
+                placeholder="Rechercher un produit..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2"
+                style={{ borderColor: '#172867', color: '#172867' }}
+              />
+            </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="px-6 py-3 rounded-lg font-semibold border-2 transition-all hover:opacity-80 flex items-center gap-2"
+              style={{ borderColor: '#172867', color: '#172867' }}
+            >
+              <SlidersHorizontal className="w-5 h-5" />
+              Filtres
+            </button>
+          </div>
+
+          {showFilters && (
+            <div className="bg-gray-50 rounded-lg p-6 grid md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
+                  Prix min (€)
+                </label>
+                <input
+                  type="number"
+                  value={filters.minPrice}
+                  onChange={(e) => setFilters({ ...filters, minPrice: e.target.value })}
+                  className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
+                  style={{ borderColor: '#172867', color: '#172867' }}
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
+                  Prix max (€)
+                </label>
+                <input
+                  type="number"
+                  value={filters.maxPrice}
+                  onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value })}
+                  className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
+                  style={{ borderColor: '#172867', color: '#172867' }}
+                  placeholder="1000"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
+                  Trier par
+                </label>
+                <select
+                  value={filters.sortBy}
+                  onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
+                  className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
+                  style={{ borderColor: '#172867', color: '#172867' }}
+                >
+                  <option value="name">Nom</option>
+                  <option value="price">Prix</option>
+                  <option value="rating">Note</option>
+                  <option value="createdAt">Date</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
+                  Ordre
+                </label>
+                <select
+                  value={filters.order}
+                  onChange={(e) => setFilters({ ...filters, order: e.target.value as 'asc' | 'desc' })}
+                  className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
+                  style={{ borderColor: '#172867', color: '#172867' }}
+                >
+                  <option value="asc">Croissant</option>
+                  <option value="desc">Décroissant</option>
+                </select>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Category Filter */}
@@ -66,11 +206,23 @@ export default function ProductsSection() {
         </div>
 
         {/* Products Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {loading ? (
+          <div className="text-center py-12">
+            <p style={{ color: '#172867', opacity: 0.7 }}>Chargement des produits...</p>
+          </div>
+        ) : products.length === 0 ? (
+          <div className="text-center py-12">
+            <p style={{ color: '#172867', opacity: 0.7 }}>
+              Aucun produit trouvé.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {products.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -161,4 +313,3 @@ function ProductCard({ product }: { product: Product }) {
     </Link>
   );
 }
-
