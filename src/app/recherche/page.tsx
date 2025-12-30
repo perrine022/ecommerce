@@ -90,53 +90,58 @@ function SearchPageContent() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {products.map((product) => (
                 <Link key={product.id} href={`/produit/${product.id}`} className="group">
-                  <div className="bg-white rounded-lg border overflow-hidden hover:shadow-lg transition-all duration-300 h-full flex flex-col hover:border-[#A0A12F]" style={{ borderColor: '#A0A12F' }}>
-                    <div className="relative h-64 w-full overflow-hidden bg-gray-100">
+                  <div className="bg-white rounded-xl border overflow-hidden hover:shadow-xl transition-all duration-300 h-full flex flex-col hover:border-[#A0A12F] hover:-translate-y-1" style={{ borderColor: '#A0A12F', opacity: 0.3 }}>
+                    <div className="relative h-64 w-full overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
                       <Image
                         src={product.image}
                         alt={product.title}
                         fill
-                        className="object-cover group-hover:scale-110 transition-transform duration-300"
+                        className="object-cover group-hover:scale-110 transition-transform duration-500"
                       />
                       {product.originalPrice && (
-                        <div className="absolute top-2 right-2 px-2 py-1 rounded text-xs font-bold text-white" style={{ backgroundColor: '#A0A12F' }}>
+                        <div className="absolute top-3 right-3 px-3 py-1.5 rounded-full text-xs font-bold text-white shadow-lg" style={{ backgroundColor: '#A0A12F' }}>
                           -{Math.round((1 - product.price / product.originalPrice) * 100)}%
                         </div>
                       )}
+                      {product.featured && (
+                        <div className="absolute top-3 left-3 px-3 py-1.5 rounded-full text-xs font-semibold text-white shadow-lg" style={{ backgroundColor: '#172867' }}>
+                          ⭐ Vedette
+                        </div>
+                      )}
                     </div>
-                    <div className="p-4 flex-1 flex flex-col">
-                      <h3 className="font-semibold text-lg mb-2 line-clamp-2" style={{ color: '#172867' }}>
+                    <div className="p-5 flex-1 flex flex-col">
+                      <h3 className="font-bold text-lg mb-2 line-clamp-2 leading-tight group-hover:opacity-80 transition-opacity" style={{ color: '#172867' }}>
                         {product.title}
                       </h3>
-                      <p className="text-sm mb-4 flex-1 line-clamp-2" style={{ color: '#172867', opacity: 0.7 }}>
+                      <p className="text-sm mb-4 flex-1 line-clamp-2 leading-relaxed" style={{ color: '#172867', opacity: 0.7 }}>
                         {product.description}
                       </p>
                       {product.rating && (
-                        <div className="flex items-center gap-1 mb-3">
-                          <div className="flex items-center">
+                        <div className="flex items-center gap-2 mb-4">
+                          <div className="flex items-center gap-0.5">
                             {[...Array(5)].map((_, i) => (
                               <Star
                                 key={i}
                                 className={`w-4 h-4 ${
                                   i < Math.floor(product.rating || 0)
                                     ? 'fill-[#A0A12F] text-[#A0A12F]'
-                                    : 'fill-gray-300 text-gray-300'
+                                    : 'fill-gray-200 text-gray-200'
                                 }`}
                               />
                             ))}
                           </div>
-                          <span className="text-xs" style={{ color: '#172867', opacity: 0.6 }}>
-                            ({product.reviews})
+                          <span className="text-xs font-medium" style={{ color: '#172867', opacity: 0.6 }}>
+                            {product.rating.toFixed(1)} ({product.reviews})
                           </span>
                         </div>
                       )}
-                      <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-100">
-                        <div>
-                          <span className="text-xl font-bold" style={{ color: '#A0A12F' }}>
+                      <div className="flex items-center justify-between mt-auto pt-4 border-t" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
+                        <div className="flex flex-col">
+                          <span className="text-2xl font-bold" style={{ color: '#A0A12F' }}>
                             {product.price.toFixed(2)} €
                           </span>
                           {product.originalPrice && (
-                            <span className="text-sm line-through ml-2 opacity-50" style={{ color: '#172867' }}>
+                            <span className="text-xs line-through mt-0.5 opacity-50" style={{ color: '#172867' }}>
                               {product.originalPrice.toFixed(2)} €
                             </span>
                           )}
@@ -146,7 +151,8 @@ function SearchPageContent() {
                             e.preventDefault();
                             addItem(product);
                           }}
-                          className="p-2 rounded-full hover:opacity-80 transition-opacity"
+                          disabled={!product.inStock}
+                          className="p-3 rounded-full hover:scale-110 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                           style={{ backgroundColor: '#A0A12F', color: 'white' }}
                         >
                           <ShoppingCart className="w-5 h-5" />

@@ -7,7 +7,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Menu, X, ShoppingCart, User, Search, X as CloseIcon } from 'lucide-react';
+import { Menu, X, ShoppingCart, User, Search, X as CloseIcon, LogOut, Settings } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -25,9 +25,11 @@ export default function Header() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const searchDropdownRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const { getItemCount } = useCart();
   const { isAuthenticated, user, logout } = useAuth();
   const router = useRouter();
@@ -58,16 +60,23 @@ export default function Header() {
       ) {
         setIsSearchOpen(false);
       }
+      if (
+        userMenuRef.current &&
+        !userMenuRef.current.contains(event.target as Node) &&
+        !(event.target as HTMLElement).closest('button[aria-label="Menu utilisateur"]')
+      ) {
+        setIsUserMenuOpen(false);
+      }
     };
 
-    if (isSearchOpen) {
+    if (isSearchOpen || isUserMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isSearchOpen]);
+  }, [isSearchOpen, isUserMenuOpen]);
 
   // Recherche avec debounce
   useEffect(() => {
@@ -347,16 +356,66 @@ export default function Header() {
 
             {/* Account */}
             {isAuthenticated ? (
-              <Link 
-                href="/compte"
-                className="hidden md:flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
-                title={user?.email}
-              >
-                <User className="w-5 h-5" style={{ color: '#172867' }} />
-                <span className="text-sm font-medium" style={{ color: '#172867' }}>
-                  {user?.firstName}
-                </span>
-              </Link>
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  aria-label="Menu utilisateur"
+                >
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: '#A0A12F', color: 'white' }}>
+                    <User className="w-4 h-4" />
+                  </div>
+                  <span className="text-sm font-medium" style={{ color: '#172867' }}>
+                    {user?.firstName}
+                  </span>
+                  <svg className="w-4 h-4 transition-transform" style={{ color: '#172867', transform: isUserMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {isUserMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <p className="text-sm font-semibold" style={{ color: '#172867' }}>
+                        {user?.firstName} {user?.lastName}
+                      </p>
+                      <p className="text-xs mt-1" style={{ color: '#172867', opacity: 0.6 }}>
+                        {user?.email}
+                      </p>
+                    </div>
+                    <Link
+                      href="/compte"
+                      onClick={() => setIsUserMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors"
+                      style={{ color: '#172867' }}
+                    >
+                      <User className="w-4 h-4" />
+                      <span className="text-sm">Mon compte</span>
+                    </Link>
+                    <Link
+                      href="/compte"
+                      onClick={() => setIsUserMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors"
+                      style={{ color: '#172867' }}
+                    >
+                      <Settings className="w-4 h-4" />
+                      <span className="text-sm">Paramètres</span>
+                    </Link>
+                    <div className="border-t border-gray-100 mt-2 pt-2">
+                      <button
+                        onClick={() => {
+                          logout();
+                          setIsUserMenuOpen(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 transition-colors text-left"
+                        style={{ color: '#A0A12F' }}
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span className="text-sm font-medium">Déconnexion</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : (
               <Link 
                 href="/connexion"

@@ -87,15 +87,20 @@ export default function AccountPage() {
     <div className="min-h-screen bg-white">
       <Header />
       <div className="pt-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <h1 className="text-3xl font-bold mb-8" style={{ color: '#172867' }}>
-            Mon Espace Client
-          </h1>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-8">
+            <h1 className="text-3xl md:text-4xl font-bold mb-2" style={{ color: '#172867' }}>
+              Mon Espace <span style={{ color: '#A0A12F' }}>Client</span>
+            </h1>
+            <p className="text-sm" style={{ color: '#172867', opacity: 0.6 }}>
+              Gérez vos informations personnelles, commandes et préférences
+            </p>
+          </div>
 
-          <div className="grid lg:grid-cols-4 gap-8">
+          <div className="grid lg:grid-cols-4 gap-6">
             {/* Sidebar */}
             <div className="lg:col-span-1">
-              <nav className="space-y-2">
+              <nav className="space-y-1.5 bg-white rounded-xl border p-2" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
                 {[
                   { id: 'profile', label: 'Mon Profil', icon: User },
                   { id: 'orders', label: 'Mes Commandes', icon: Package },
@@ -107,27 +112,29 @@ export default function AccountPage() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                      activeTab === tab.id ? 'text-white' : ''
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm ${
+                      activeTab === tab.id ? 'text-white shadow-md' : 'hover:bg-gray-50'
                     }`}
                     style={
                       activeTab === tab.id
-                        ? { backgroundColor: '#172867' }
-                        : { color: '#172867', backgroundColor: 'transparent' }
+                        ? { backgroundColor: '#A0A12F' }
+                        : { color: '#172867' }
                     }
                   >
-                    <tab.icon className="w-5 h-5" />
+                    <tab.icon className="w-4 h-4" />
                     <span className="font-medium">{tab.label}</span>
                   </button>
                 ))}
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all hover:opacity-80"
-                  style={{ color: '#A0A12F' }}
-                >
-                  <LogOut className="w-5 h-5" />
-                  <span className="font-medium">Déconnexion</span>
-                </button>
+                <div className="border-t border-gray-200 mt-2 pt-2">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all hover:bg-red-50 text-sm"
+                    style={{ color: '#A0A12F' }}
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span className="font-medium">Déconnexion</span>
+                  </button>
+                </div>
               </nav>
             </div>
 
@@ -178,23 +185,28 @@ function ProfileTab({ user }: { user: any }) {
   };
 
   return (
-    <div className="bg-white rounded-lg border-2 border-gray-100 p-6">
-      <h2 className="text-2xl font-bold mb-6" style={{ color: '#172867' }}>
-        Mon Profil
-      </h2>
+    <div className="bg-white rounded-xl border p-6 shadow-sm" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#A0A12F', opacity: 0.1 }}>
+          <User className="w-5 h-5" style={{ color: '#A0A12F' }} />
+        </div>
+        <h2 className="text-xl font-bold" style={{ color: '#172867' }}>
+          Mon Profil
+        </h2>
+      </div>
       {message && (
-        <div className={`mb-4 p-4 rounded-lg ${
+        <div className={`mb-5 p-3 rounded-lg ${
           message.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
         }`}>
-          <p className={`text-sm ${message.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+          <p className={`text-sm ${message.type === 'success' ? 'text-green-700' : 'text-red-700'}`}>
             {message.text}
           </p>
         </div>
       )}
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
+            <label className="block text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
               Prénom
             </label>
             <input
@@ -202,12 +214,12 @@ function ProfileTab({ user }: { user: any }) {
               required
               value={formData.firstName}
               onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-              className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
-              style={{ borderColor: '#172867', color: '#172867' }}
+              className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-1 transition-all"
+              style={{ borderColor: '#A0A12F', opacity: 0.3, color: '#172867' }}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
+            <label className="block text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
               Nom
             </label>
             <input
@@ -215,41 +227,45 @@ function ProfileTab({ user }: { user: any }) {
               required
               value={formData.lastName}
               onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-              className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
-              style={{ borderColor: '#172867', color: '#172867' }}
+              className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-1 transition-all"
+              style={{ borderColor: '#A0A12F', opacity: 0.3, color: '#172867' }}
             />
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
+          <label className="block text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
             Email
           </label>
           <input
             type="email"
             required
             value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
-            style={{ borderColor: '#172867', color: '#172867' }}
+            disabled
+            className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 cursor-not-allowed"
+            style={{ borderColor: '#A0A12F', opacity: 0.2, color: '#172867' }}
           />
+          <p className="mt-1.5 text-xs" style={{ color: '#172867', opacity: 0.5 }}>
+            L'email ne peut pas être modifié
+          </p>
         </div>
         <div>
-          <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
+          <label className="block text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
             Téléphone
           </label>
           <input
             type="tel"
             value={formData.phone}
             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
-            style={{ borderColor: '#172867', color: '#172867' }}
+            className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-1 transition-all"
+            style={{ borderColor: '#A0A12F', opacity: 0.3, color: '#172867' }}
+            placeholder="06 12 34 56 78"
           />
         </div>
         <button
           type="submit"
           disabled={saving}
-          className="px-6 py-3 rounded-lg font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
-          style={{ backgroundColor: '#172867' }}
+          className="px-6 py-3 rounded-lg font-semibold text-white transition-all hover:opacity-90 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ backgroundColor: '#A0A12F' }}
         >
           {saving ? 'Enregistrement...' : 'Enregistrer les modifications'}
         </button>
@@ -295,18 +311,24 @@ function OrdersTab({ orders, loading }: { orders: Order[]; loading: boolean }) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold mb-6" style={{ color: '#172867' }}>
-        Mes Commandes
-      </h2>
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#A0A12F', opacity: 0.1 }}>
+          <Package className="w-5 h-5" style={{ color: '#A0A12F' }} />
+        </div>
+        <h2 className="text-xl font-bold" style={{ color: '#172867' }}>
+          Mes Commandes
+        </h2>
+      </div>
       {orders.length === 0 ? (
-        <div className="bg-white rounded-lg border-2 border-gray-100 p-6 text-center">
+        <div className="bg-white rounded-xl border p-8 text-center" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
+          <Package className="w-12 h-12 mx-auto mb-4" style={{ color: '#A0A12F', opacity: 0.5 }} />
           <p style={{ color: '#172867', opacity: 0.7 }}>
             Vous n'avez pas encore de commandes.
           </p>
         </div>
       ) : (
         orders.map((order) => (
-          <div key={order.id} className="bg-white rounded-lg border-2 border-gray-100 p-6">
+          <div key={order.id} className="bg-white rounded-xl border p-5 hover:shadow-md transition-shadow" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="font-semibold" style={{ color: '#172867' }}>
@@ -354,13 +376,21 @@ function OrdersTab({ orders, loading }: { orders: Order[]; loading: boolean }) {
 
 function FavoritesTab() {
   return (
-    <div className="bg-white rounded-lg border-2 border-gray-100 p-6">
-      <h2 className="text-2xl font-bold mb-6" style={{ color: '#172867' }}>
-        Mes Favoris
-      </h2>
-      <p style={{ color: '#172867', opacity: 0.7 }}>
-        Vous n'avez pas encore de produits favoris.
-      </p>
+    <div className="bg-white rounded-xl border p-6" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#A0A12F', opacity: 0.1 }}>
+          <Heart className="w-5 h-5" style={{ color: '#A0A12F' }} />
+        </div>
+        <h2 className="text-xl font-bold" style={{ color: '#172867' }}>
+          Mes Favoris
+        </h2>
+      </div>
+      <div className="text-center py-8">
+        <Heart className="w-12 h-12 mx-auto mb-4" style={{ color: '#A0A12F', opacity: 0.3 }} />
+        <p style={{ color: '#172867', opacity: 0.7 }}>
+          Vous n'avez pas encore de produits favoris.
+        </p>
+      </div>
     </div>
   );
 }
@@ -378,20 +408,25 @@ function AddressesTab({ addresses, loading, onRefresh }: { addresses: Address[];
   }
 
   return (
-    <div className="bg-white rounded-lg border-2 border-gray-100 p-6">
+    <div className="bg-white rounded-xl border p-6" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold" style={{ color: '#172867' }}>
-          Mes Adresses
-        </h2>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#A0A12F', opacity: 0.1 }}>
+            <MapPin className="w-5 h-5" style={{ color: '#A0A12F' }} />
+          </div>
+          <h2 className="text-xl font-bold" style={{ color: '#172867' }}>
+            Mes Adresses
+          </h2>
+        </div>
         <button
           onClick={() => {
             setEditingAddress(null);
             setShowForm(true);
           }}
-          className="px-6 py-3 rounded-lg font-semibold border-2 transition-all hover:opacity-80"
-          style={{ borderColor: '#172867', color: '#172867' }}
+          className="px-5 py-2.5 rounded-lg font-semibold text-white transition-all hover:opacity-90 hover:shadow-md text-sm"
+          style={{ backgroundColor: '#A0A12F' }}
         >
-          + Ajouter une adresse
+          + Ajouter
         </button>
       </div>
       {showForm && (
@@ -415,7 +450,7 @@ function AddressesTab({ addresses, loading, onRefresh }: { addresses: Address[];
       ) : (
         <div className="grid md:grid-cols-2 gap-4">
           {addresses.map((address) => (
-            <div key={address.id} className="border-2 border-gray-100 rounded-lg p-4">
+            <div key={address.id} className="border rounded-xl p-4 hover:shadow-md transition-shadow" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
               <div className="flex justify-between items-start mb-2">
                 <h3 className="font-semibold" style={{ color: '#172867' }}>
                   {address.type === 'billing' ? 'Facturation' : 'Livraison'}
@@ -494,8 +529,8 @@ function AddressForm({ address, onClose, onSuccess }: { address: Address | null;
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mb-6 p-4 border-2 border-gray-200 rounded-lg space-y-4">
-      <h3 className="font-semibold" style={{ color: '#172867' }}>
+    <form onSubmit={handleSubmit} className="mb-6 p-5 border rounded-xl space-y-4 bg-gray-50" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
+      <h3 className="font-semibold text-lg mb-4" style={{ color: '#172867' }}>
         {address ? 'Modifier l\'adresse' : 'Nouvelle adresse'}
       </h3>
       <div>
@@ -505,8 +540,8 @@ function AddressForm({ address, onClose, onSuccess }: { address: Address | null;
         <select
           value={formData.type}
           onChange={(e) => setFormData({ ...formData, type: e.target.value as 'billing' | 'shipping' })}
-          className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
-          style={{ borderColor: '#172867', color: '#172867' }}
+          className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-1 transition-all"
+          style={{ borderColor: '#A0A12F', opacity: 0.3, color: '#172867' }}
         >
           <option value="shipping">Livraison</option>
           <option value="billing">Facturation</option>
@@ -548,8 +583,8 @@ function AddressForm({ address, onClose, onSuccess }: { address: Address | null;
           type="text"
           value={formData.company}
           onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-          className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
-          style={{ borderColor: '#172867', color: '#172867' }}
+          className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-1 transition-all"
+          style={{ borderColor: '#A0A12F', opacity: 0.3, color: '#172867' }}
         />
       </div>
       <div>
@@ -561,8 +596,8 @@ function AddressForm({ address, onClose, onSuccess }: { address: Address | null;
           required
           value={formData.addressLine1}
           onChange={(e) => setFormData({ ...formData, addressLine1: e.target.value })}
-          className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
-          style={{ borderColor: '#172867', color: '#172867' }}
+          className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-1 transition-all"
+          style={{ borderColor: '#A0A12F', opacity: 0.3, color: '#172867' }}
         />
       </div>
       <div>
@@ -573,8 +608,8 @@ function AddressForm({ address, onClose, onSuccess }: { address: Address | null;
           type="text"
           value={formData.addressLine2}
           onChange={(e) => setFormData({ ...formData, addressLine2: e.target.value })}
-          className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
-          style={{ borderColor: '#172867', color: '#172867' }}
+          className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-1 transition-all"
+          style={{ borderColor: '#A0A12F', opacity: 0.3, color: '#172867' }}
         />
       </div>
       <div className="grid grid-cols-3 gap-4">
@@ -614,8 +649,8 @@ function AddressForm({ address, onClose, onSuccess }: { address: Address | null;
           required
           value={formData.country}
           onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-          className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
-          style={{ borderColor: '#172867', color: '#172867' }}
+          className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-1 transition-all"
+          style={{ borderColor: '#A0A12F', opacity: 0.3, color: '#172867' }}
         />
       </div>
       <div>
@@ -626,8 +661,8 @@ function AddressForm({ address, onClose, onSuccess }: { address: Address | null;
           type="tel"
           value={formData.phone}
           onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-          className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
-          style={{ borderColor: '#172867', color: '#172867' }}
+          className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-1 transition-all"
+          style={{ borderColor: '#A0A12F', opacity: 0.3, color: '#172867' }}
         />
       </div>
       <div className="flex items-center gap-2">
@@ -646,16 +681,16 @@ function AddressForm({ address, onClose, onSuccess }: { address: Address | null;
         <button
           type="submit"
           disabled={saving}
-          className="px-6 py-3 rounded-lg font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
-          style={{ backgroundColor: '#172867' }}
+          className="px-6 py-3 rounded-lg font-semibold text-white transition-all hover:opacity-90 hover:shadow-md disabled:opacity-50"
+          style={{ backgroundColor: '#A0A12F' }}
         >
           {saving ? 'Enregistrement...' : 'Enregistrer'}
         </button>
         <button
           type="button"
           onClick={onClose}
-          className="px-6 py-3 rounded-lg font-semibold border-2 transition-all hover:opacity-80"
-          style={{ borderColor: '#172867', color: '#172867' }}
+          className="px-6 py-3 rounded-lg font-semibold border transition-all hover:opacity-80"
+          style={{ borderColor: '#A0A12F', opacity: 0.3, color: '#172867' }}
         >
           Annuler
         </button>
@@ -666,13 +701,18 @@ function AddressForm({ address, onClose, onSuccess }: { address: Address | null;
 
 function PaymentTab() {
   return (
-    <div className="bg-white rounded-lg border-2 border-gray-100 p-6">
-      <h2 className="text-2xl font-bold mb-6" style={{ color: '#172867' }}>
-        Moyens de Paiement
-      </h2>
+    <div className="bg-white rounded-xl border p-6" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#A0A12F', opacity: 0.1 }}>
+          <CreditCard className="w-5 h-5" style={{ color: '#A0A12F' }} />
+        </div>
+        <h2 className="text-xl font-bold" style={{ color: '#172867' }}>
+          Moyens de Paiement
+        </h2>
+      </div>
       <button
-        className="px-6 py-3 rounded-lg font-semibold border-2 transition-all hover:opacity-80"
-        style={{ borderColor: '#172867', color: '#172867' }}
+        className="px-5 py-2.5 rounded-lg font-semibold text-white transition-all hover:opacity-90 hover:shadow-md text-sm"
+        style={{ backgroundColor: '#A0A12F' }}
       >
         + Ajouter une carte
       </button>
@@ -682,17 +722,22 @@ function PaymentTab() {
 
 function SettingsTab() {
   return (
-    <div className="bg-white rounded-lg border-2 border-gray-100 p-6">
-      <h2 className="text-2xl font-bold mb-6" style={{ color: '#172867' }}>
-        Paramètres
-      </h2>
+    <div className="bg-white rounded-xl border p-6" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#A0A12F', opacity: 0.1 }}>
+          <Settings className="w-5 h-5" style={{ color: '#A0A12F' }} />
+        </div>
+        <h2 className="text-xl font-bold" style={{ color: '#172867' }}>
+          Paramètres
+        </h2>
+      </div>
       <div className="space-y-4">
-        <label className="flex items-center gap-3">
-          <input type="checkbox" className="w-5 h-5" style={{ accentColor: '#172867' }} />
+        <label className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+          <input type="checkbox" className="w-5 h-5" style={{ accentColor: '#A0A12F' }} />
           <span style={{ color: '#172867' }}>Recevoir les newsletters</span>
         </label>
-        <label className="flex items-center gap-3">
-          <input type="checkbox" className="w-5 h-5" style={{ accentColor: '#172867' }} />
+        <label className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+          <input type="checkbox" className="w-5 h-5" style={{ accentColor: '#A0A12F' }} />
           <span style={{ color: '#172867' }}>Notifications par email</span>
         </label>
       </div>
