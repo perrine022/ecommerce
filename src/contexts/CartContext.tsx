@@ -84,8 +84,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
     };
 
+    // Écouter l'événement de déconnexion personnalisé
+    const handleLogout = () => {
+      setItems([]);
+    };
+
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('auth_logout', handleLogout);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('auth_logout', handleLogout);
+    };
   }, []);
 
   const loadCart = async () => {

@@ -88,7 +88,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           <div className="grid lg:grid-cols-2 gap-12">
             {/* Images */}
             <div className="space-y-4">
-              <div className="relative h-[500px] md:h-[600px] w-full rounded-xl overflow-hidden bg-gray-100 shadow-lg border" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
+              <div className="relative h-[500px] md:h-[600px] w-full rounded-xl overflow-hidden bg-gray-100 shadow-lg border" style={{ borderColor: '#A0A12F' }}>
                 <Image
                   src={images[selectedImage]}
                   alt={product.title}
@@ -176,23 +176,23 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               </div>
 
               {/* Price Section */}
-              <div className="bg-gradient-to-br from-[#A0A12F]/10 to-transparent rounded-xl p-6 border" style={{ borderColor: '#A0A12F', opacity: 0.3 }}>
+              <div className="bg-gradient-to-br from-[#A0A12F]/5 to-transparent rounded-xl p-6 border" style={{ borderColor: '#A0A12F' }}>
                 <div className="flex items-baseline gap-4">
-                  <span className="text-5xl md:text-6xl font-bold" style={{ color: '#A0A12F' }}>
+                  <span className="text-3xl md:text-4xl font-bold" style={{ color: '#A0A12F' }}>
                     {product.price.toFixed(2)} €
                   </span>
                   {product.originalPrice && (
                     <>
-                      <span className="text-2xl line-through opacity-50" style={{ color: '#172867' }}>
+                      <span className="text-lg line-through opacity-50" style={{ color: '#172867' }}>
                         {product.originalPrice.toFixed(2)} €
                       </span>
-                      <span className="px-3 py-1 rounded-full text-sm font-bold text-white" style={{ backgroundColor: '#A0A12F' }}>
+                      <span className="px-3 py-1 rounded-full text-xs font-bold text-white" style={{ backgroundColor: '#A0A12F' }}>
                         -{Math.round((1 - product.price / product.originalPrice) * 100)}%
                       </span>
                     </>
                   )}
                 </div>
-                <p className="text-sm mt-2" style={{ color: '#172867', opacity: 0.6 }}>
+                <p className="text-xs mt-2" style={{ color: '#172867', opacity: 0.6 }}>
                   Prix TTC
                 </p>
               </div>

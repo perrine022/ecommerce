@@ -63,9 +63,14 @@ export default function AccountPage() {
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    router.push('/');
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.push('/');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      router.push('/');
+    }
   };
 
   if (authLoading) {
@@ -100,7 +105,7 @@ export default function AccountPage() {
           <div className="grid lg:grid-cols-4 gap-6">
             {/* Sidebar */}
             <div className="lg:col-span-1">
-              <nav className="space-y-1.5 bg-white rounded-xl border p-2" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
+              <nav className="space-y-1.5 bg-white rounded-xl border p-2" style={{ borderColor: '#A0A12F' }}>
                 {[
                   { id: 'profile', label: 'Mon Profil', icon: User },
                   { id: 'orders', label: 'Mes Commandes', icon: Package },
@@ -185,7 +190,7 @@ function ProfileTab({ user }: { user: any }) {
   };
 
   return (
-    <div className="bg-white rounded-xl border p-6 shadow-sm" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
+    <div className="bg-white rounded-xl border p-6 shadow-sm" style={{ borderColor: '#A0A12F' }}>
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#A0A12F', opacity: 0.1 }}>
           <User className="w-5 h-5" style={{ color: '#A0A12F' }} />
@@ -215,7 +220,7 @@ function ProfileTab({ user }: { user: any }) {
               value={formData.firstName}
               onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
               className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-1 transition-all"
-              style={{ borderColor: '#A0A12F', opacity: 0.3, color: '#172867' }}
+              style={{ borderColor: '#A0A12F', color: '#172867' }}
             />
           </div>
           <div>
@@ -228,7 +233,7 @@ function ProfileTab({ user }: { user: any }) {
               value={formData.lastName}
               onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
               className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-1 transition-all"
-              style={{ borderColor: '#A0A12F', opacity: 0.3, color: '#172867' }}
+              style={{ borderColor: '#A0A12F', color: '#172867' }}
             />
           </div>
         </div>
@@ -242,7 +247,7 @@ function ProfileTab({ user }: { user: any }) {
             value={formData.email}
             disabled
             className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 cursor-not-allowed"
-            style={{ borderColor: '#A0A12F', opacity: 0.2, color: '#172867' }}
+            style={{ borderColor: '#A0A12F', color: '#172867' }}
           />
           <p className="mt-1.5 text-xs" style={{ color: '#172867', opacity: 0.5 }}>
             L'email ne peut pas être modifié
@@ -320,7 +325,7 @@ function OrdersTab({ orders, loading }: { orders: Order[]; loading: boolean }) {
         </h2>
       </div>
       {orders.length === 0 ? (
-        <div className="bg-white rounded-xl border p-8 text-center" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
+        <div className="bg-white rounded-xl border p-8 text-center" style={{ borderColor: '#A0A12F' }}>
           <Package className="w-12 h-12 mx-auto mb-4" style={{ color: '#A0A12F', opacity: 0.5 }} />
           <p style={{ color: '#172867', opacity: 0.7 }}>
             Vous n'avez pas encore de commandes.
@@ -328,7 +333,7 @@ function OrdersTab({ orders, loading }: { orders: Order[]; loading: boolean }) {
         </div>
       ) : (
         orders.map((order) => (
-          <div key={order.id} className="bg-white rounded-xl border p-5 hover:shadow-md transition-shadow" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
+          <div key={order.id} className="bg-white rounded-xl border p-5 hover:shadow-md transition-shadow" style={{ borderColor: '#A0A12F' }}>
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="font-semibold" style={{ color: '#172867' }}>
@@ -376,7 +381,7 @@ function OrdersTab({ orders, loading }: { orders: Order[]; loading: boolean }) {
 
 function FavoritesTab() {
   return (
-    <div className="bg-white rounded-xl border p-6" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
+    <div className="bg-white rounded-xl border p-6" style={{ borderColor: '#A0A12F' }}>
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#A0A12F', opacity: 0.1 }}>
           <Heart className="w-5 h-5" style={{ color: '#A0A12F' }} />
@@ -386,7 +391,7 @@ function FavoritesTab() {
         </h2>
       </div>
       <div className="text-center py-8">
-        <Heart className="w-12 h-12 mx-auto mb-4" style={{ color: '#A0A12F', opacity: 0.3 }} />
+        <Heart className="w-12 h-12 mx-auto mb-4" style={{ color: '#A0A12F' }} />
         <p style={{ color: '#172867', opacity: 0.7 }}>
           Vous n'avez pas encore de produits favoris.
         </p>
@@ -408,7 +413,7 @@ function AddressesTab({ addresses, loading, onRefresh }: { addresses: Address[];
   }
 
   return (
-    <div className="bg-white rounded-xl border p-6" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
+    <div className="bg-white rounded-xl border p-6" style={{ borderColor: '#A0A12F' }}>
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#A0A12F', opacity: 0.1 }}>
@@ -450,7 +455,7 @@ function AddressesTab({ addresses, loading, onRefresh }: { addresses: Address[];
       ) : (
         <div className="grid md:grid-cols-2 gap-4">
           {addresses.map((address) => (
-            <div key={address.id} className="border rounded-xl p-4 hover:shadow-md transition-shadow" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
+            <div key={address.id} className="border rounded-xl p-4 hover:shadow-md transition-shadow" style={{ borderColor: '#A0A12F' }}>
               <div className="flex justify-between items-start mb-2">
                 <h3 className="font-semibold" style={{ color: '#172867' }}>
                   {address.type === 'billing' ? 'Facturation' : 'Livraison'}
@@ -529,7 +534,7 @@ function AddressForm({ address, onClose, onSuccess }: { address: Address | null;
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mb-6 p-5 border rounded-xl space-y-4 bg-gray-50" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
+    <form onSubmit={handleSubmit} className="mb-6 p-5 border rounded-xl space-y-4 bg-gray-50" style={{ borderColor: '#A0A12F' }}>
       <h3 className="font-semibold text-lg mb-4" style={{ color: '#172867' }}>
         {address ? 'Modifier l\'adresse' : 'Nouvelle adresse'}
       </h3>
@@ -690,7 +695,7 @@ function AddressForm({ address, onClose, onSuccess }: { address: Address | null;
           type="button"
           onClick={onClose}
           className="px-6 py-3 rounded-lg font-semibold border transition-all hover:opacity-80"
-          style={{ borderColor: '#A0A12F', opacity: 0.3, color: '#172867' }}
+          style={{ borderColor: '#A0A12F', color: '#172867' }}
         >
           Annuler
         </button>
@@ -701,7 +706,7 @@ function AddressForm({ address, onClose, onSuccess }: { address: Address | null;
 
 function PaymentTab() {
   return (
-    <div className="bg-white rounded-xl border p-6" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
+    <div className="bg-white rounded-xl border p-6" style={{ borderColor: '#A0A12F' }}>
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#A0A12F', opacity: 0.1 }}>
           <CreditCard className="w-5 h-5" style={{ color: '#A0A12F' }} />
@@ -722,7 +727,7 @@ function PaymentTab() {
 
 function SettingsTab() {
   return (
-    <div className="bg-white rounded-xl border p-6" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
+    <div className="bg-white rounded-xl border p-6" style={{ borderColor: '#A0A12F' }}>
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#A0A12F', opacity: 0.1 }}>
           <Settings className="w-5 h-5" style={{ color: '#A0A12F' }} />

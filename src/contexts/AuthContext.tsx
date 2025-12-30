@@ -16,7 +16,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   updateUser: (user: User) => void;
   refreshUser: () => Promise<void>;
 }
@@ -68,9 +68,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(userResponse.user || userResponse);
   };
 
-  const logout = () => {
-    authApi.logout();
-    setUser(null);
+  const logout = async () => {
+    try {
+      // Vider le panier côté backend avant de déconnecter (si connecté)
+      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+      if (token) {
+        try {
+          const { cartApi } = await import('@/services/api');
+          await cartApi.clearCart();
+        } catch (error) {
+          console.error('Failed to clear cart on logout:', error);
+          // Continue même si la suppression du panier échoue
+        }
+      }
+    } catch (error) {
+      console.error('Error during logout cart clearing:', error);
+    } finally {
+      // Supprimer les tokens
+      authApi.logout();
+      // Réinitialiser l'état utilisateur
+      setUser(null);
+      // Nettoyer le localStorage complètement
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('refresh_token');
+        // Déclencher un événement personnalisé pour que le CartContext vide le panier
+        window.dispatchEvent(new CustomEvent('auth_logout'));
+      }
+    }
   };
 
   const updateUser = (updatedUser: User) => {

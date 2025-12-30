@@ -402,9 +402,15 @@ export default function Header() {
                     </Link>
                     <div className="border-t border-gray-100 mt-2 pt-2">
                       <button
-                        onClick={() => {
-                          logout();
+                        onClick={async () => {
                           setIsUserMenuOpen(false);
+                          try {
+                            await logout();
+                            router.push('/');
+                          } catch (error) {
+                            console.error('Error during logout:', error);
+                            router.push('/');
+                          }
                         }}
                         className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 transition-colors text-left"
                         style={{ color: '#A0A12F' }}
@@ -522,9 +528,15 @@ export default function Header() {
                   Mon Compte ({user?.firstName})
                 </Link>
                 <button
-                  onClick={() => {
-                    logout();
+                  onClick={async () => {
                     setIsMobileMenuOpen(false);
+                    try {
+                      await logout();
+                      router.push('/');
+                    } catch (error) {
+                      console.error('Error during logout:', error);
+                      router.push('/');
+                    }
                   }}
                   className="flex items-center gap-2 text-base font-medium"
                   style={{ color: '#A0A12F' }}
