@@ -101,7 +101,7 @@ export default function LoginPage() {
 
             {/* Right side - Form */}
             <div className="w-full max-w-md mx-auto lg:mx-0">
-              <div className="bg-white rounded-xl shadow-lg border-2 p-8 lg:p-10" style={{ borderColor: '#A0A12F' }}>
+              <div className="bg-white rounded-xl shadow-lg border p-8 lg:p-10" style={{ borderColor: '#A0A12F' }}>
                 <div className="mb-8">
                   <h2 className="text-2xl font-semibold mb-1.5" style={{ color: '#172867' }}>
                     Connexion
@@ -131,7 +131,7 @@ export default function LoginPage() {
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         onFocus={() => setFocusedField('email')}
                         onBlur={() => setFocusedField(null)}
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 bg-white"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white"
                         style={{ 
                           borderColor: focusedField === 'email' ? '#A0A12F' : 'rgba(160, 161, 47, 0.3)',
                           color: '#172867',
@@ -156,7 +156,7 @@ export default function LoginPage() {
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         onFocus={() => setFocusedField('password')}
                         onBlur={() => setFocusedField(null)}
-                        className="w-full pl-10 pr-10 py-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 bg-white"
+                        className="w-full pl-10 pr-10 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white"
                         style={{ 
                           borderColor: focusedField === 'password' ? '#A0A12F' : 'rgba(160, 161, 47, 0.3)',
                           color: '#172867',

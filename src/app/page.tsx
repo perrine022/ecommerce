@@ -25,17 +25,17 @@ export default function HomePage() {
         <ProductsSection />
 
         {/* Features Section */}
-        <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
+        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
           <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-12">
+            <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ color: '#172867' }}>
                 Pourquoi choisir <span style={{ color: '#A0A12F' }}>TradeFood</span> ?
               </h2>
-              <p className="text-lg" style={{ color: '#172867', opacity: 0.8 }}>
+              <p className="text-base" style={{ color: '#172867', opacity: 0.7 }}>
                 Des avantages qui font la différence
               </p>
             </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               <FeatureCard
                 icon={Truck}
                 title="Livraison Rapide"
@@ -83,7 +83,7 @@ export default function HomePage() {
               <input
                 type="email"
                 placeholder="Votre email"
-                className="flex-1 px-6 py-3 rounded-lg border-2 focus:outline-none focus:ring-2"
+                className="flex-1 px-6 py-3 rounded-lg border focus:outline-none focus:ring-1"
                 style={{ borderColor: '#A0A12F', color: '#172867' }}
               />
               <button
@@ -105,16 +105,21 @@ export default function HomePage() {
 
 function FeatureCard({ icon: Icon, title, description }: { icon: any; title: string; description: string }) {
   return (
-    <div className="text-center p-8 rounded-xl bg-white border hover:shadow-xl transition-all duration-300 hover:-translate-y-1" style={{ borderColor: '#A0A12F' }}>
-      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 shadow-md" style={{ backgroundColor: '#A0A12F', opacity: 0.2 }}>
-        <Icon className="w-10 h-10" style={{ color: '#A0A12F' }} />
+    <div className="group relative p-6 rounded-lg transition-all duration-300 hover:bg-white hover:shadow-md" style={{ backgroundColor: 'rgba(160, 161, 47, 0.02)' }}>
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center transition-all duration-300 group-hover:scale-110" style={{ backgroundColor: '#A0A12F', opacity: 0.1 }}>
+          <Icon className="w-6 h-6" style={{ color: '#A0A12F' }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-lg font-semibold mb-2" style={{ color: '#172867' }}>
+            {title}
+          </h3>
+          <p className="text-sm leading-relaxed" style={{ color: '#172867', opacity: 0.7 }}>
+            {description}
+          </p>
+        </div>
       </div>
-      <h3 className="text-xl font-bold mb-3" style={{ color: '#172867' }}>
-        {title}
-      </h3>
-      <p className="text-base leading-relaxed" style={{ color: '#172867', opacity: 0.85 }}>
-        {description}
-      </p>
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#A0A12F] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
     </div>
   );
 }

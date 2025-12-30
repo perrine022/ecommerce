@@ -144,7 +144,7 @@ export default function RegisterPage() {
 
             {/* Right side - Form */}
             <div className="w-full max-w-md mx-auto lg:mx-0">
-              <div className="bg-white rounded-xl shadow-lg border-2 p-8 lg:p-10" style={{ borderColor: '#A0A12F' }}>
+              <div className="bg-white rounded-xl shadow-lg border p-8 lg:p-10" style={{ borderColor: '#A0A12F' }}>
                 <div className="mb-8">
                   <h2 className="text-2xl font-semibold mb-1.5" style={{ color: '#172867' }}>
                     Inscription
@@ -168,7 +168,7 @@ export default function RegisterPage() {
                       <button
                         type="button"
                         onClick={() => setUserType('INDIVIDUAL')}
-                        className={`p-3 rounded-lg border-2 transition-all duration-200 flex items-center justify-center gap-2 ${
+                        className={`p-3 rounded-lg border transition-all duration-200 flex items-center justify-center gap-2 ${
                           userType === 'INDIVIDUAL'
                             ? 'border-[#A0A12F] bg-[#A0A12F]/10'
                             : 'border-[#A0A12F]/30 bg-[#A0A12F]/5 hover:border-[#A0A12F]/50'
@@ -182,7 +182,7 @@ export default function RegisterPage() {
                       <button
                         type="button"
                         onClick={() => setUserType('COMPANY')}
-                        className={`p-3 rounded-lg border-2 transition-all duration-200 flex items-center justify-center gap-2 ${
+                        className={`p-3 rounded-lg border transition-all duration-200 flex items-center justify-center gap-2 ${
                           userType === 'COMPANY'
                             ? 'border-[#A0A12F] bg-[#A0A12F]/10'
                             : 'border-[#A0A12F]/30 bg-[#A0A12F]/5 hover:border-[#A0A12F]/50'
@@ -213,7 +213,7 @@ export default function RegisterPage() {
                           onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                           onFocus={() => setFocusedField('companyName')}
                           onBlur={() => setFocusedField(null)}
-                          className="w-full pl-10 pr-4 py-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 bg-white"
+                          className="w-full pl-10 pr-4 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white"
                           style={{ 
                             borderColor: focusedField === 'companyName' ? '#A0A12F' : 'rgba(160, 161, 47, 0.3)',
                             color: '#172867',
@@ -240,7 +240,7 @@ export default function RegisterPage() {
                           onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                           onFocus={() => setFocusedField('firstName')}
                           onBlur={() => setFocusedField(null)}
-                          className="w-full pl-10 pr-4 py-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 bg-white"
+                          className="w-full pl-10 pr-4 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white"
                           style={{ 
                             borderColor: focusedField === 'firstName' ? '#A0A12F' : 'rgba(160, 161, 47, 0.3)',
                             color: '#172867',
@@ -265,7 +265,7 @@ export default function RegisterPage() {
                           onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                           onFocus={() => setFocusedField('lastName')}
                           onBlur={() => setFocusedField(null)}
-                          className="w-full pl-10 pr-4 py-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 bg-white"
+                          className="w-full pl-10 pr-4 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white"
                           style={{ 
                             borderColor: focusedField === 'lastName' ? '#A0A12F' : 'rgba(160, 161, 47, 0.3)',
                             color: '#172867',
@@ -340,7 +340,7 @@ export default function RegisterPage() {
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         onFocus={() => setFocusedField('password')}
                         onBlur={() => setFocusedField(null)}
-                        className="w-full pl-10 pr-10 py-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 bg-white"
+                        className="w-full pl-10 pr-10 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white"
                         style={{ 
                           borderColor: focusedField === 'password' ? '#A0A12F' : 'rgba(160, 161, 47, 0.3)',
                           color: '#172867',
@@ -376,7 +376,7 @@ export default function RegisterPage() {
                         onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                         onFocus={() => setFocusedField('confirmPassword')}
                         onBlur={() => setFocusedField(null)}
-                        className="w-full pl-10 pr-10 py-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 bg-white"
+                        className="w-full pl-10 pr-10 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white"
                         style={{ 
                           borderColor: focusedField === 'confirmPassword' ? '#A0A12F' : 'rgba(160, 161, 47, 0.3)',
                           color: '#172867',
