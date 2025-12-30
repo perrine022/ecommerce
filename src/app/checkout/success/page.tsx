@@ -7,14 +7,14 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { CheckCircle, Package } from 'lucide-react';
 import Link from 'next/link';
 import { useCart } from '@/contexts/CartContext';
 
-export default function CheckoutSuccessPage() {
+function CheckoutSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { clearCart } = useCart();
@@ -73,6 +73,26 @@ export default function CheckoutSuccessPage() {
       </div>
       <Footer />
     </div>
+  );
+}
+
+export default function CheckoutSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white">
+        <Header />
+        <div className="pt-20">
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div className="flex items-center justify-center py-20">
+              <div className="w-8 h-8 border-2 border-[#A0A12F] border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    }>
+      <CheckoutSuccessContent />
+    </Suspense>
   );
 }
 

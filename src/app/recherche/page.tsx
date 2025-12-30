@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -17,7 +17,7 @@ import { useCart } from '@/contexts/CartContext';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
-export default function SearchPage() {
+function SearchPageContent() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
   const [products, setProducts] = useState<Product[]>([]);
@@ -182,6 +182,26 @@ export default function SearchPage() {
       </div>
       <Footer />
     </div>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white">
+        <Header />
+        <div className="pt-24 pb-20 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-center py-20">
+              <div className="w-8 h-8 border-2 border-[#A0A12F] border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    }>
+      <SearchPageContent />
+    </Suspense>
   );
 }
 
