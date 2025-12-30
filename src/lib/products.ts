@@ -1,12 +1,12 @@
 import { Product, Category } from '@/types/product';
 
 export const categories: Category[] = [
-  { id: '1', name: 'Fruits Exotiques', slug: 'fruits-exotiques', description: 'Découvrez nos fruits rares et savoureux' },
+  { id: '1', name: 'Fruits', slug: 'fruits', description: 'Découvrez nos fruits rares et savoureux' },
   { id: '2', name: 'Épices & Condiments', slug: 'epices-condiments', description: 'Épices du monde entier' },
-  { id: '3', name: 'Thés & Infusions', slug: 'thes-infusions', description: 'Thés rares et infusions exotiques' },
-  { id: '4', name: 'Chocolats & Confiseries', slug: 'chocolats-confiseries', description: 'Gourmandises exotiques' },
+  { id: '3', name: 'Thés & Infusions', slug: 'thes-infusions', description: 'Thés rares et infusions authentiques' },
+  { id: '4', name: 'Chocolats & Confiseries', slug: 'chocolats-confiseries', description: 'Gourmandises rares' },
   { id: '5', name: 'Huiles & Vinaigres', slug: 'huiles-vinaigres', description: 'Huiles et vinaigres d\'exception' },
-  { id: '6', name: 'Cafés & Boissons', slug: 'cafes-boissons', description: 'Cafés rares et boissons exotiques' },
+  { id: '6', name: 'Cafés & Boissons', slug: 'cafes-boissons', description: 'Cafés rares et boissons authentiques' },
 ];
 
 export const products: Product[] = [
@@ -22,7 +22,7 @@ export const products: Product[] = [
       'https://images.unsplash.com/photo-1605027990121-c0a4233e1e4a?w=800&h=600&fit=crop&q=80',
       'https://images.unsplash.com/photo-1605027990121-c0a4233e1e4a?w=800&h=600&fit=crop&q=80',
     ],
-    category: 'fruits-exotiques',
+    category: 'fruits',
     inStock: true,
     stock: 15,
     rating: 4.8,
@@ -160,13 +160,13 @@ export const products: Product[] = [
   {
     id: '7',
     title: 'Fruit du Dragon Rouge',
-    description: 'Pitaya rouge frais, fruit exotique aux saveurs subtiles entre kiwi et poire. Riche en antioxydants.',
+    description: 'Pitaya rouge frais, fruit rare aux saveurs subtiles entre kiwi et poire. Riche en antioxydants.',
     price: 19.90,
     image: 'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=800&h=600&fit=crop&q=80',
     images: [
       'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=800&h=600&fit=crop&q=80',
     ],
-    category: 'fruits-exotiques',
+    category: 'fruits',
     inStock: true,
     stock: 18,
     rating: 4.6,

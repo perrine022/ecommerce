@@ -10,6 +10,43 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { CartItem, Product } from '@/types/product';
 import { cartApi } from '@/services/api';
 
+// Fonction de mapping pour les produits du panier (identique à celle de l'API)
+function mapBackendProductToFrontend(backendProduct: any): Product {
+  const cleanDescription = backendProduct.description
+    ? backendProduct.description.replace(/<br\s*\/?>/gi, '\n').trim()
+    : '';
+
+  return {
+    id: backendProduct.id || backendProduct.sellsyId?.toString(),
+    title: backendProduct.name || backendProduct.title || 'Produit sans nom',
+    description: cleanDescription || backendProduct.description || '',
+    price: parseFloat(
+      backendProduct.referencePrice ||
+        backendProduct.referencePriceTaxesInc ||
+        backendProduct.price ||
+        '0'
+    ),
+    originalPrice: undefined,
+    image:
+      backendProduct.imageUrl ||
+      backendProduct.image ||
+      'https://via.placeholder.com/400',
+    images:
+      backendProduct.images ||
+      (backendProduct.imageUrl ? [backendProduct.imageUrl] : []),
+    category:
+      backendProduct.categoryId?.toString() || backendProduct.category || '1',
+    inStock: !backendProduct.isArchived && !backendProduct.isDeclined,
+    stock: backendProduct.stock || undefined,
+    rating: backendProduct.rating || undefined,
+    reviews: backendProduct.reviews || undefined,
+    featured: backendProduct.featured || backendProduct.isFeatured || false,
+    origin: backendProduct.origin || undefined,
+    weight: backendProduct.weight || undefined,
+    dimensions: backendProduct.dimensions || undefined,
+  };
+}
+
 interface CartContextType {
   items: CartItem[];
   addItem: (product: Product, quantity?: number) => void;
@@ -56,13 +93,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
     try {
       const response = await cartApi.getCart();
       // Convertir les items du backend en CartItem
-      const cartItems: CartItem[] = response.items.map((item: any) => ({
-        product: item.product,
-        quantity: item.quantity,
-      }));
+      // Les produits du backend doivent être mappés vers le format frontend
+      const cartItems: CartItem[] = response.items.map((item: any) => {
+        // Mapper le produit du backend vers le format frontend
+        const product = item.product?.name 
+          ? mapBackendProductToFrontend(item.product) 
+          : item.product; // Si déjà au format frontend, on l'utilise tel quel
+        return {
+          product: product,
+          quantity: item.quantity,
+        };
+      });
       setItems(cartItems);
     } catch (error) {
       console.error('Failed to load cart:', error);
+      setItems([]);
     } finally {
       setLoading(false);
     }

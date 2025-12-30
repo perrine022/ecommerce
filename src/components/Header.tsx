@@ -6,20 +6,31 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Menu, X, ShoppingCart, User, Search } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Menu, X, ShoppingCart, User, Search, X as CloseIcon } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { categories } from '@/lib/products';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { productApi } from '@/services/api';
+import { Product } from '@/types/product';
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchDropdownRef = useRef<HTMLDivElement>(null);
   const { getItemCount } = useCart();
   const { isAuthenticated, user, logout } = useAuth();
+  const router = useRouter();
   const cartCount = getItemCount();
 
   useEffect(() => {
@@ -30,6 +41,83 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Focus sur le champ de recherche quand il s'ouvre
+  useEffect(() => {
+    if (isSearchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isSearchOpen]);
+
+  // Fermer le dropdown en cliquant en dehors
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchDropdownRef.current &&
+        !searchDropdownRef.current.contains(event.target as Node) &&
+        !(event.target as HTMLElement).closest('button[aria-label="Rechercher"]')
+      ) {
+        setIsSearchOpen(false);
+      }
+    };
+
+    if (isSearchOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isSearchOpen]);
+
+  // Recherche avec debounce
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (searchQuery.trim().length >= 2) {
+      setIsSearching(true);
+      searchTimeoutRef.current = setTimeout(async () => {
+        try {
+          const response = await productApi.getAll({
+            search: searchQuery,
+            limit: 5,
+          });
+          setSearchResults(response.products || []);
+        } catch (error) {
+          console.error('Search error:', error);
+          setSearchResults([]);
+        } finally {
+          setIsSearching(false);
+        }
+      }, 300);
+    } else {
+      setSearchResults([]);
+      setIsSearching(false);
+    }
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery]);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/recherche?q=${encodeURIComponent(searchQuery.trim())}`);
+      setIsSearchOpen(false);
+      setSearchQuery('');
+    }
+  };
+
+  const handleProductClick = (productId: string) => {
+    router.push(`/produit/${productId}`);
+    setIsSearchOpen(false);
+    setSearchQuery('');
+  };
+
   return (
     <header 
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-white ${
@@ -39,7 +127,7 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
-          <Link href="/" className="flex items-center">
+          <Link href="/" className="flex items-center flex-shrink-0">
             <Image
               src="/logotrade.png"
               alt="TradeFood"
@@ -50,9 +138,27 @@ export default function Header() {
             />
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-8">
-            {/* Catégories Dropdown */}
+          {/* Desktop Navigation - Centré */}
+          <nav className="hidden lg:flex items-center space-x-6 xl:space-x-8 flex-1 justify-center">
+            {/* Nouveautés - En premier pour créer de l'urgence (FOMO) */}
+            <Link 
+              href="/nouveautes" 
+              className="text-sm font-medium hover:opacity-80 transition-colors"
+              style={{ color: '#172867' }}
+            >
+              Nouveautés
+            </Link>
+
+            {/* Promotions - Deuxième pour attirer avec les offres */}
+            <Link 
+              href="/promotions" 
+              className="text-sm font-medium hover:opacity-80 transition-colors"
+              style={{ color: '#172867' }}
+            >
+              Promotions
+            </Link>
+
+            {/* Catégories Dropdown - Navigation principale au centre */}
             <div 
               className="relative"
               onMouseEnter={() => setIsCategoryMenuOpen(true)}
@@ -91,14 +197,7 @@ export default function Header() {
               )}
             </div>
 
-            <Link 
-              href="/societe" 
-              className="text-sm font-medium hover:opacity-80 transition-colors"
-              style={{ color: '#172867' }}
-            >
-              Société
-            </Link>
-
+            {/* Contact - Support client pour rassurer */}
             <Link 
               href="/contact" 
               className="text-sm font-medium hover:opacity-80 transition-colors"
@@ -107,29 +206,131 @@ export default function Header() {
               Contact
             </Link>
 
+            {/* Société - Informations en dernier */}
             <Link 
-              href="/promotions" 
+              href="/a-propos" 
               className="text-sm font-medium hover:opacity-80 transition-colors"
               style={{ color: '#172867' }}
             >
-              Promotions
-            </Link>
-
-            <Link 
-              href="/nouveautes" 
-              className="text-sm font-medium hover:opacity-80 transition-colors"
-              style={{ color: '#172867' }}
-            >
-              Nouveautés
+              Société
             </Link>
           </nav>
 
           {/* Right side actions */}
-          <div className="flex items-center space-x-4">
-            {/* Search */}
-            <button className="hidden md:flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 transition-colors">
-              <Search className="w-5 h-5" style={{ color: '#172867' }} />
-            </button>
+          <div className="flex items-center space-x-3 md:space-x-4">
+            {/* Search - Integrated in header */}
+            <div className="relative flex items-center">
+              {!isSearchOpen ? (
+                <button 
+                  onClick={() => setIsSearchOpen(true)}
+                  className="flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 transition-all duration-200"
+                  aria-label="Rechercher"
+                >
+                  <Search className="w-5 h-5 transition-transform duration-200" style={{ color: '#172867' }} />
+                </button>
+              ) : (
+                <div 
+                  ref={searchDropdownRef}
+                  className="relative flex items-center animate-in fade-in slide-in-from-right-5 duration-300"
+                  style={{ width: '400px' }}
+                >
+                  <form onSubmit={handleSearchSubmit} className="w-full">
+                    <div className="relative flex items-center">
+                      <Search className="absolute left-3 w-5 h-5 z-10" style={{ color: '#172867', opacity: 0.5 }} />
+                      <input
+                        ref={searchInputRef}
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Rechercher un produit..."
+                        className="w-full pl-10 pr-10 py-2.5 rounded-full border focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white transition-all duration-200"
+                        style={{ 
+                          borderColor: '#A0A12F',
+                          color: '#172867',
+                        }}
+                        onBlur={(e) => {
+                          // Ne fermer que si on clique en dehors du dropdown
+                          if (!searchDropdownRef.current?.contains(e.relatedTarget as Node)) {
+                            setTimeout(() => {
+                              if (!searchQuery && searchResults.length === 0) {
+                                setIsSearchOpen(false);
+                              }
+                            }, 200);
+                          }
+                        }}
+                      />
+                      {searchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchQuery('');
+                            setSearchResults([]);
+                            setIsSearchOpen(false);
+                          }}
+                          className="absolute right-3 p-1 rounded-full hover:bg-gray-100 transition-colors"
+                        >
+                          <CloseIcon className="w-4 h-4" style={{ color: '#172867', opacity: 0.5 }} />
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                  
+                  {/* Search Results Dropdown */}
+                  {(isSearching || searchResults.length > 0 || (searchQuery.trim().length >= 2 && !isSearching)) && (
+                    <div className="absolute top-full right-0 mt-2 w-full bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-96 overflow-y-auto">
+                      {isSearching ? (
+                        <div className="p-8 text-center">
+                          <div className="inline-block w-6 h-6 border-2 border-[#A0A12F] border-t-transparent rounded-full animate-spin"></div>
+                          <p className="mt-2 text-sm" style={{ color: '#172867', opacity: 0.6 }}>Recherche en cours...</p>
+                        </div>
+                      ) : searchResults.length > 0 ? (
+                        <div className="p-2">
+                          {searchResults.map((product) => (
+                            <button
+                              key={product.id}
+                              onClick={() => handleProductClick(product.id)}
+                              className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors text-left"
+                            >
+                              <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                                <Image
+                                  src={product.image}
+                                  alt={product.title}
+                                  fill
+                                  className="object-cover"
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-sm font-medium truncate" style={{ color: '#172867' }}>
+                                  {product.title}
+                                </h4>
+                                <p className="text-sm font-bold mt-1" style={{ color: '#A0A12F' }}>
+                                  {product.price.toFixed(2)} €
+                                </p>
+                              </div>
+                            </button>
+                          ))}
+                          {searchQuery.trim() && (
+                            <button
+                              onClick={handleSearchSubmit}
+                              className="w-full mt-2 p-3 rounded-lg text-sm font-medium transition-colors"
+                              style={{ backgroundColor: '#A0A12F', color: 'white' }}
+                            >
+                              Voir tous les résultats pour "{searchQuery}"
+                            </button>
+                          )}
+                        </div>
+                      ) : searchQuery.trim().length >= 2 ? (
+                        <div className="p-8 text-center">
+                          <p className="text-sm" style={{ color: '#172867', opacity: 0.6 }}>
+                            Aucun résultat trouvé
+                          </p>
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Cart */}
             <Link 
@@ -182,7 +383,27 @@ export default function Header() {
       {isMobileMenuOpen && (
         <div className="lg:hidden border-t border-gray-200 bg-white">
           <nav className="px-4 py-6 space-y-4">
-            {/* Catégories */}
+            {/* Nouveautés - En premier pour créer de l'urgence */}
+            <Link 
+              href="/nouveautes"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="block text-base font-medium"
+              style={{ color: '#172867' }}
+            >
+              Nouveautés
+            </Link>
+
+            {/* Promotions - Deuxième pour attirer avec les offres */}
+            <Link 
+              href="/promotions"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="block text-base font-medium"
+              style={{ color: '#172867' }}
+            >
+              Promotions
+            </Link>
+
+            {/* Catégories - Navigation principale */}
             <div className="space-y-2">
               <div className="text-sm font-semibold mb-2" style={{ color: '#A0A12F' }}>
                 Catégories
@@ -200,15 +421,7 @@ export default function Header() {
               ))}
             </div>
 
-            <Link 
-              href="/societe"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="block text-base font-medium"
-              style={{ color: '#172867' }}
-            >
-              Société
-            </Link>
-
+            {/* Contact - Support client */}
             <Link 
               href="/contact"
               onClick={() => setIsMobileMenuOpen(false)}
@@ -218,22 +431,14 @@ export default function Header() {
               Contact
             </Link>
 
+            {/* Société - Informations en dernier */}
             <Link 
-              href="/promotions"
+              href="/a-propos"
               onClick={() => setIsMobileMenuOpen(false)}
               className="block text-base font-medium"
               style={{ color: '#172867' }}
             >
-              Promotions
-            </Link>
-
-            <Link 
-              href="/nouveautes"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="block text-base font-medium"
-              style={{ color: '#172867' }}
-            >
-              Nouveautés
+              Société
             </Link>
 
             <div className="border-t border-gray-200 pt-4 mt-4 space-y-4">

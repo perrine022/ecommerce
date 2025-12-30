@@ -200,3 +200,4 @@ Les endpoints de livraison sont câblés mais non documentés :
 - **Synchronisation panier** : Le panier se synchronise automatiquement avec le backend à chaque action
 - **Authentification** : Le token est stocké dans `localStorage` sous la clé `auth_token`
 
+

@@ -25,6 +25,8 @@ export interface RegisterData {
   firstName: string;
   lastName: string;
   phone?: string;
+  type?: "INDIVIDUAL" | "COMPANY";
+  companyName?: string;
 }
 
 export interface ResetPasswordData {
@@ -42,4 +44,5 @@ export interface UpdateProfileData {
   phone?: string;
   email?: string;
 }
+
 

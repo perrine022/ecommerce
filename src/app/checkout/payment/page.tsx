@@ -38,13 +38,6 @@ function PaymentPageContent() {
     setPaymentIntentId(intent);
   }, [searchParams, router]);
 
-  const options: StripeElementsOptions = {
-    clientSecret,
-    appearance: {
-      theme: 'stripe',
-    },
-  };
-
   if (!clientSecret) {
     return (
       <div className="min-h-screen bg-white">
@@ -62,17 +55,6 @@ function PaymentPageContent() {
       theme: 'stripe',
     },
   };
-
-  if (!clientSecret) {
-    return (
-      <div className="min-h-screen bg-white">
-        <Header />
-        <div className="pt-20 flex items-center justify-center min-h-[60vh]">
-          <p style={{ color: '#172867' }}>Chargement...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-white">

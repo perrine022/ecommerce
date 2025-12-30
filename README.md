@@ -1,22 +1,22 @@
-# TradeFood - Site E-commerce de Produits Exotiques
+# TradeFood - Site E-commerce de Produits Rares et Authentiques
 
 **Auteur :** Perrine Honoré  
 **Date :** 29 décembre 2025
 
-Site e-commerce moderne pour **TradeFood**, une boutique en ligne spécialisée dans les produits exotiques du monde entier : fruits exotiques, épices, thés, chocolats, huiles et cafés rares.
+Site e-commerce moderne pour **TradeFood**, une boutique en ligne spécialisée dans les produits rares et authentiques du monde entier : fruits, épices, thés, chocolats, huiles et cafés rares.
 
 ## 🌟 À propos
 
-**TradeFood** est une plateforme e-commerce dédiée à la vente de produits exotiques authentiques et de qualité. Nous proposons une sélection soignée de produits rares provenant des quatre coins du monde, garantissant fraîcheur, authenticité et traçabilité.
+**TradeFood** est une plateforme e-commerce dédiée à la vente de produits rares et authentiques de qualité. Nous proposons une sélection soignée de produits rares provenant des quatre coins du monde, garantissant fraîcheur, authenticité et traçabilité.
 
 ### Catégories de produits
 
-- 🍍 **Fruits Exotiques** - Mangues, fruits du dragon, et autres fruits rares
+- 🍍 **Fruits** - Mangues, fruits du dragon, et autres fruits rares
 - 🌶️ **Épices & Condiments** - Curry, safran, et épices du monde entier
-- 🍵 **Thés & Infusions** - Thés rares et infusions exotiques
-- 🍫 **Chocolats & Confiseries** - Chocolats fins et gourmandises exotiques
+- 🍵 **Thés & Infusions** - Thés rares et infusions authentiques
+- 🍫 **Chocolats & Confiseries** - Chocolats fins et gourmandises rares
 - 🫒 **Huiles & Vinaigres** - Huiles d'exception et vinaigres rares
-- ☕ **Cafés & Boissons** - Cafés rares et boissons exotiques
+- ☕ **Cafés & Boissons** - Cafés rares et boissons authentiques
 
 ## 🚀 Technologies utilisées
 

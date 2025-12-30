@@ -70,12 +70,12 @@ export default function ProductsSection() {
   };
 
   return (
-    <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white" id="produits">
+    <section className="pt-8 pb-16 px-4 sm:px-6 lg:px-8 bg-white" id="produits">
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ color: '#172867' }}>
-            Nos Produits Exotiques
+            Nos <span style={{ color: '#A0A12F' }}>Produits</span>
           </h2>
           <p className="text-lg" style={{ color: '#172867', opacity: 0.7 }}>
             Découvrez notre sélection de produits rares et authentiques du monde entier
@@ -92,14 +92,14 @@ export default function ProductsSection() {
                 placeholder="Rechercher un produit..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2"
+                className="w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-1"
                 style={{ borderColor: '#172867', color: '#172867' }}
               />
             </div>
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="px-6 py-3 rounded-lg font-semibold border-2 transition-all hover:opacity-80 flex items-center gap-2"
-              style={{ borderColor: '#172867', color: '#172867' }}
+              className="px-6 py-3 rounded-lg font-semibold border transition-all hover:opacity-80 flex items-center gap-2"
+              style={{ borderColor: '#A0A12F', color: '#A0A12F' }}
             >
               <SlidersHorizontal className="w-5 h-5" />
               Filtres
@@ -107,7 +107,7 @@ export default function ProductsSection() {
           </div>
 
           {showFilters && (
-            <div className="bg-gray-50 rounded-lg p-6 grid md:grid-cols-4 gap-4">
+            <div className="bg-white rounded-lg border p-6 grid md:grid-cols-4 gap-4" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
               <div>
                 <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
                   Prix min (€)
@@ -116,7 +116,7 @@ export default function ProductsSection() {
                   type="number"
                   value={filters.minPrice}
                   onChange={(e) => setFilters({ ...filters, minPrice: e.target.value })}
-                  className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1"
                   style={{ borderColor: '#172867', color: '#172867' }}
                   placeholder="0"
                 />
@@ -129,7 +129,7 @@ export default function ProductsSection() {
                   type="number"
                   value={filters.maxPrice}
                   onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value })}
-                  className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1"
                   style={{ borderColor: '#172867', color: '#172867' }}
                   placeholder="1000"
                 />
@@ -141,7 +141,7 @@ export default function ProductsSection() {
                 <select
                   value={filters.sortBy}
                   onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
-                  className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1"
                   style={{ borderColor: '#172867', color: '#172867' }}
                 >
                   <option value="name">Nom</option>
@@ -157,7 +157,7 @@ export default function ProductsSection() {
                 <select
                   value={filters.order}
                   onChange={(e) => setFilters({ ...filters, order: e.target.value as 'asc' | 'desc' })}
-                  className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1"
                   style={{ borderColor: '#172867', color: '#172867' }}
                 >
                   <option value="asc">Croissant</option>
@@ -175,12 +175,12 @@ export default function ProductsSection() {
             className={`px-6 py-2 rounded-full font-medium transition-all ${
               selectedCategory === 'all'
                 ? 'text-white'
-                : 'border-2'
+                : 'border'
             }`}
             style={
               selectedCategory === 'all'
-                ? { backgroundColor: '#172867' }
-                : { borderColor: '#172867', color: '#172867' }
+                ? { backgroundColor: '#A0A12F' }
+                : { borderColor: '#A0A12F', color: '#A0A12F' }
             }
           >
             Tous
@@ -192,12 +192,12 @@ export default function ProductsSection() {
               className={`px-6 py-2 rounded-full font-medium transition-all ${
                 selectedCategory === category.slug
                   ? 'text-white'
-                  : 'border-2'
+                  : 'border'
               }`}
               style={
                 selectedCategory === category.slug
-                  ? { backgroundColor: '#172867' }
-                  : { borderColor: '#172867', color: '#172867' }
+                  ? { backgroundColor: '#A0A12F' }
+                  : { borderColor: '#A0A12F', color: '#A0A12F' }
               }
             >
               {category.name}
@@ -233,7 +233,7 @@ function ProductCard({ product }: { product: Product }) {
 
   return (
     <Link href={`/produit/${product.id}`} className="group">
-      <div className="bg-white rounded-lg border-2 border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 h-full flex flex-col">
+      <div className="bg-white rounded-lg border overflow-hidden hover:shadow-lg transition-all duration-300 h-full flex flex-col hover:border-[#A0A12F]" style={{ borderColor: '#A0A12F', opacity: 0.3 }}>
         {/* Image */}
         <div className="relative h-64 w-full overflow-hidden bg-gray-100">
           <Image
@@ -303,7 +303,7 @@ function ProductCard({ product }: { product: Product }) {
                 addItem(product);
               }}
               className="p-2 rounded-full hover:opacity-80 transition-opacity"
-              style={{ backgroundColor: '#172867', color: 'white' }}
+              style={{ backgroundColor: '#A0A12F', color: 'white' }}
             >
               <ShoppingCart className="w-5 h-5" />
             </button>

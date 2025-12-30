@@ -164,7 +164,11 @@ function ProfileTab({ user }: { user: any }) {
     setMessage(null);
 
     try {
-      await userApi.updateProfile(formData);
+      // PUT /api/v1/users/profile n'accepte que firstName et lastName selon la doc
+      await userApi.updateProfile({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+      });
       setMessage({ type: 'success', text: 'Profil mis à jour avec succès' });
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message || 'Erreur lors de la mise à jour' });

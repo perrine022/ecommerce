@@ -10,8 +10,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "TradeFood - Produits Exotiques du Monde Entier",
-  description: "Découvrez notre sélection de produits exotiques rares et authentiques : fruits exotiques, épices, thés, chocolats et bien plus encore.",
+  title: "TradeFood - Produits Rares et Authentiques",
+  description: "Découvrez notre sélection de produits rares et authentiques : fruits, épices, thés, chocolats et bien plus encore.",
   icons: {
     icon: [
       { url: '/logotrade.png', type: 'image/png' },

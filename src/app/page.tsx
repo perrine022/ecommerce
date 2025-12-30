@@ -7,7 +7,7 @@
 'use client';
 
 import Header from '@/components/Header';
-import HeroSection from '@/components/HeroSection';
+import PromoBanner from '@/components/PromoBanner';
 import ProductsSection from '@/components/ProductsSection';
 import Footer from '@/components/Footer';
 import { Truck, Shield, RotateCcw, Award, Heart, Users } from 'lucide-react';
@@ -18,19 +18,22 @@ export default function HomePage() {
       <Header />
       
       <main>
-        {/* Hero Section */}
-        <HeroSection />
+        {/* Promo Banner */}
+        <PromoBanner />
 
         {/* Products Section */}
         <ProductsSection />
 
         {/* Features Section */}
-        <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gray-50">
+        <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-12">
               <h2 className="text-3xl md:text-4xl font-bold mb-4" style={{ color: '#172867' }}>
-                Pourquoi choisir TradeFood ?
+                Pourquoi choisir <span style={{ color: '#A0A12F' }}>TradeFood</span> ?
               </h2>
+              <p className="text-lg" style={{ color: '#172867', opacity: 0.8 }}>
+                Des avantages qui font la différence
+              </p>
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               <FeatureCard
@@ -68,10 +71,10 @@ export default function HomePage() {
         </section>
 
         {/* Newsletter Section */}
-        <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
+        <section className="py-16 px-4 sm:px-6 lg:px-8" style={{ background: 'linear-gradient(135deg, rgba(160, 161, 47, 0.05) 0%, rgba(160, 161, 47, 0.02) 100%)' }}>
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-3xl font-bold mb-4" style={{ color: '#172867' }}>
-              Restez informé de nos nouveautés
+              Restez informé de nos <span style={{ color: '#A0A12F' }}>nouveautés</span>
             </h2>
             <p className="text-lg mb-8" style={{ color: '#172867', opacity: 0.7 }}>
               Recevez nos offres exclusives et découvrez nos nouveaux produits en avant-première
@@ -81,12 +84,12 @@ export default function HomePage() {
                 type="email"
                 placeholder="Votre email"
                 className="flex-1 px-6 py-3 rounded-lg border-2 focus:outline-none focus:ring-2"
-                style={{ borderColor: '#172867', color: '#172867' }}
+                style={{ borderColor: '#A0A12F', color: '#172867' }}
               />
               <button
                 type="submit"
                 className="px-8 py-3 rounded-lg font-semibold text-white transition-all hover:opacity-90"
-                style={{ backgroundColor: '#172867' }}
+                style={{ backgroundColor: '#A0A12F' }}
               >
                 S'abonner
               </button>
@@ -102,14 +105,14 @@ export default function HomePage() {
 
 function FeatureCard({ icon: Icon, title, description }: { icon: any; title: string; description: string }) {
   return (
-    <div className="text-center p-6 rounded-lg bg-white border-2 border-gray-100 hover:shadow-lg transition-all">
-      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4" style={{ backgroundColor: '#A0A12F', opacity: 0.1 }}>
-        <Icon className="w-8 h-8" style={{ color: '#A0A12F' }} />
+    <div className="text-center p-8 rounded-xl bg-white border hover:shadow-xl transition-all duration-300 hover:-translate-y-1" style={{ borderColor: '#A0A12F' }}>
+      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 shadow-md" style={{ backgroundColor: '#A0A12F', opacity: 0.2 }}>
+        <Icon className="w-10 h-10" style={{ color: '#A0A12F' }} />
       </div>
-      <h3 className="text-xl font-semibold mb-2" style={{ color: '#172867' }}>
+      <h3 className="text-xl font-bold mb-3" style={{ color: '#172867' }}>
         {title}
       </h3>
-      <p className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
+      <p className="text-base leading-relaxed" style={{ color: '#172867', opacity: 0.85 }}>
         {description}
       </p>
     </div>

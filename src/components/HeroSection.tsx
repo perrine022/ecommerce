@@ -116,7 +116,7 @@ export default function HeroSection() {
               <Link
                 href={`/produit/${featuredProduct.id}`}
                 className="group inline-flex items-center justify-center px-6 py-3 rounded-lg font-semibold text-white transition-all duration-200 hover:opacity-90"
-                style={{ backgroundColor: '#172867' }}
+                style={{ backgroundColor: '#A0A12F' }}
               >
                 Voir le produit
                 <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />

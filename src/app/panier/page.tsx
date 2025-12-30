@@ -41,7 +41,7 @@ export default function CartPage() {
               Votre panier est vide
             </h2>
             <p className="mb-8" style={{ color: '#172867', opacity: 0.7 }}>
-              Découvrez nos produits exotiques et remplissez votre panier !
+              Découvrez nos produits et remplissez votre panier !
             </p>
             <Link
               href="/"

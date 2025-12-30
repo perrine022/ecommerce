@@ -40,7 +40,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = async () => {
     try {
       const response = await authApi.getCurrentUser();
-      setUser(response.user);
+      // GET /api/v1/users/me retourne directement l'objet User
+      setUser(response.user || response);
     } catch (error) {
       console.error('Failed to get current user:', error);
       localStorage.removeItem('auth_token');
@@ -56,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('auth_token', response.token);
     // Récupérer les infos utilisateur après connexion
     const userResponse = await authApi.getCurrentUser();
-    setUser(userResponse.user);
+    setUser(userResponse.user || userResponse);
   };
 
   const register = async (data: RegisterData) => {
@@ -64,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('auth_token', response.token);
     // Récupérer les infos utilisateur après inscription
     const userResponse = await authApi.getCurrentUser();
-    setUser(userResponse.user);
+    setUser(userResponse.user || userResponse);
   };
 
   const logout = () => {

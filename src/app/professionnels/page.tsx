@@ -205,7 +205,7 @@ export default function ProfessionnelsPage() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative pt-24 md:pt-32 pb-12 md:pb-20 px-4" style={{ backgroundColor: '#aac527' }}>
+      <section className="relative pt-24 md:pt-32 pb-12 md:pb-20 px-4" style={{ backgroundColor: '#A0A12F' }}>
         <div className="container mx-auto max-w-7xl">
           <ScrollReveal>
             <div className="text-center max-w-4xl mx-auto">
@@ -228,12 +228,12 @@ export default function ProfessionnelsPage() {
       </section>
 
       {/* Services Section */}
-      <section id="services" className="relative py-12 sm:py-16 md:py-24 px-4 bg-gray-50">
+      <section id="services" className="relative py-12 sm:py-16 md:py-24 px-4" style={{ background: 'linear-gradient(135deg, rgba(160, 161, 47, 0.05) 0%, rgba(23, 40, 103, 0.02) 100%)' }}>
         <div className="container mx-auto max-w-7xl">
           <ScrollReveal>
             <div className="text-center mb-10 sm:mb-16 md:mb-20">
               <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extralight text-gray-900 mb-4 tracking-tight">
-                Nos <span style={{ color: '#aac527' }}>services</span> professionnels
+                Nos <span style={{ color: '#A0A12F' }}>services</span> professionnels
               </h2>
               <p className="text-base sm:text-lg md:text-xl text-gray-600 font-light max-w-3xl mx-auto">
                 Des solutions sur mesure pour optimiser la performance énergétique de vos locaux professionnels
@@ -246,9 +246,9 @@ export default function ProfessionnelsPage() {
               const Icon = service.icon;
               return (
                 <ScrollReveal key={index} delay={index * 100}>
-                  <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border border-gray-100">
-                    <div className={`w-16 h-16 ${service.bgColor} rounded-xl flex items-center justify-center mb-6`}>
-                      <Icon className={`w-8 h-8 ${service.iconColor}`} />
+                  <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border-2 hover:border-[#A0A12F]/40" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
+                    <div className="w-16 h-16 rounded-xl flex items-center justify-center mb-6" style={{ backgroundColor: '#A0A12F', opacity: 0.15 }}>
+                      <Icon className="w-8 h-8" style={{ color: '#A0A12F' }} />
                     </div>
                     <h3 className="text-2xl sm:text-3xl font-light text-gray-900 mb-2">
                       {service.title}
@@ -264,14 +264,15 @@ export default function ProfessionnelsPage() {
                     <ul className="space-y-3 mb-6">
                       {service.features.map((feature, featureIndex) => (
                         <li key={featureIndex} className="flex items-start gap-3">
-                          <CheckCircle2 className={`w-5 h-5 ${service.iconColor} flex-shrink-0 mt-0.5`} />
+                          <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#A0A12F' }} />
                           <span className="text-sm sm:text-base text-gray-700 font-light">{feature}</span>
                         </li>
                       ))}
                     </ul>
                     <a 
                       href="#contact"
-                      className={`inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r ${service.color} text-white rounded-xl font-medium text-sm sm:text-base hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5`}
+                      className="inline-flex items-center gap-2 px-6 py-3 text-white rounded-xl font-medium text-sm sm:text-base hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5"
+                      style={{ backgroundColor: '#A0A12F' }}
                     >
                       Demander un devis
                       <ArrowRight className="w-4 h-4" />
@@ -285,7 +286,7 @@ export default function ProfessionnelsPage() {
       </section>
 
       {/* Contact Section */}
-      <section id="contact" className="relative py-16 sm:py-20 md:py-32 px-4" style={{ backgroundColor: '#aac527' }}>
+      <section id="contact" className="relative py-16 sm:py-20 md:py-32 px-4" style={{ backgroundColor: '#A0A12F' }}>
         <div className="container mx-auto max-w-6xl relative z-10">
           <ScrollReveal>
             <div className="text-center mb-10 sm:mb-16 md:mb-20">
@@ -301,7 +302,7 @@ export default function ProfessionnelsPage() {
           <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 md:gap-16 items-start">
             {/* Formulaire */}
             <ScrollReveal delay={200}>
-              <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 sm:p-8 md:p-12 shadow-2xl">
+              <div className="bg-white rounded-2xl p-6 sm:p-8 md:p-12 shadow-2xl">
                 <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
                   <div className="space-y-1">
                     <label htmlFor="name" className="block text-xs font-light text-gray-500 uppercase tracking-wider">
@@ -314,7 +315,10 @@ export default function ProfessionnelsPage() {
                       value={formData.name}
                       onChange={handleChange}
                       required
-                      className="w-full px-0 py-4 border-0 border-b border-gray-300 rounded-none bg-transparent focus:ring-0 focus:border-gray-600 transition-colors text-gray-800 placeholder-gray-400 font-light"
+                      className="w-full px-0 py-4 border-0 border-b-2 rounded-none bg-transparent focus:ring-0 transition-colors text-gray-800 placeholder-gray-400 font-light"
+                      style={{ borderColor: 'rgba(160, 161, 47, 0.3)' }}
+                      onFocus={(e) => e.target.style.borderColor = '#A0A12F'}
+                      onBlur={(e) => e.target.style.borderColor = 'rgba(160, 161, 47, 0.3)'}
                       placeholder="Votre nom"
                     />
                   </div>
@@ -328,7 +332,10 @@ export default function ProfessionnelsPage() {
                       name="company"
                       value={formData.company}
                       onChange={handleChange}
-                      className="w-full px-0 py-4 border-0 border-b border-gray-300 rounded-none bg-transparent focus:ring-0 focus:border-gray-600 transition-colors text-gray-800 placeholder-gray-400 font-light"
+                      className="w-full px-0 py-4 border-0 border-b-2 rounded-none bg-transparent focus:ring-0 transition-colors text-gray-800 placeholder-gray-400 font-light"
+                      style={{ borderColor: 'rgba(160, 161, 47, 0.3)' }}
+                      onFocus={(e) => e.target.style.borderColor = '#A0A12F'}
+                      onBlur={(e) => e.target.style.borderColor = 'rgba(160, 161, 47, 0.3)'}
                       placeholder="Nom de votre entreprise"
                     />
                   </div>
@@ -343,7 +350,10 @@ export default function ProfessionnelsPage() {
                       value={formData.email}
                       onChange={handleChange}
                       required
-                      className="w-full px-0 py-4 border-0 border-b border-gray-300 rounded-none bg-transparent focus:ring-0 focus:border-gray-600 transition-colors text-gray-800 placeholder-gray-400 font-light"
+                      className="w-full px-0 py-4 border-0 border-b-2 rounded-none bg-transparent focus:ring-0 transition-colors text-gray-800 placeholder-gray-400 font-light"
+                      style={{ borderColor: 'rgba(160, 161, 47, 0.3)' }}
+                      onFocus={(e) => e.target.style.borderColor = '#A0A12F'}
+                      onBlur={(e) => e.target.style.borderColor = 'rgba(160, 161, 47, 0.3)'}
                       placeholder="votre@email.com"
                     />
                   </div>
@@ -357,7 +367,10 @@ export default function ProfessionnelsPage() {
                       name="phone"
                       value={formData.phone}
                       onChange={handleChange}
-                      className="w-full px-0 py-4 border-0 border-b border-gray-300 rounded-none bg-transparent focus:ring-0 focus:border-gray-600 transition-colors text-gray-800 placeholder-gray-400 font-light"
+                      className="w-full px-0 py-4 border-0 border-b-2 rounded-none bg-transparent focus:ring-0 transition-colors text-gray-800 placeholder-gray-400 font-light"
+                      style={{ borderColor: 'rgba(160, 161, 47, 0.3)' }}
+                      onFocus={(e) => e.target.style.borderColor = '#A0A12F'}
+                      onBlur={(e) => e.target.style.borderColor = 'rgba(160, 161, 47, 0.3)'}
                       placeholder="06 12 34 56 78"
                     />
                   </div>
@@ -372,20 +385,23 @@ export default function ProfessionnelsPage() {
                       onChange={handleChange}
                       required
                       rows={6}
-                      className="w-full px-0 py-4 border-0 border-b border-gray-300 rounded-none bg-transparent focus:ring-0 focus:border-gray-600 transition-colors resize-none text-gray-800 placeholder-gray-400 font-light"
+                      className="w-full px-0 py-4 border-0 border-b-2 rounded-none bg-transparent focus:ring-0 transition-colors resize-none text-gray-800 placeholder-gray-400 font-light"
+                      style={{ borderColor: 'rgba(160, 161, 47, 0.3)' }}
+                      onFocus={(e) => e.target.style.borderColor = '#A0A12F'}
+                      onBlur={(e) => e.target.style.borderColor = 'rgba(160, 161, 47, 0.3)'}
                       placeholder="Décrivez-nous votre projet professionnel..."
                     />
                   </div>
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full px-0 py-5 bg-white border-2 border-white text-gray-700 rounded-full font-light tracking-wider uppercase text-sm hover:bg-gray-50 hover:text-gray-900 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ borderColor: '#aac527', color: '#aac527' }}
+                    className="w-full px-0 py-5 bg-white border-2 text-gray-700 rounded-full font-light tracking-wider uppercase text-sm hover:bg-gray-50 hover:text-gray-900 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg"
+                    style={{ borderColor: '#A0A12F', color: '#A0A12F' }}
                   >
                     {isSubmitting ? 'Envoi en cours...' : 'Envoyer'}
                   </button>
                   {submitStatus === 'success' && (
-                    <div className="bg-white border-l-4 p-4" style={{ borderColor: '#aac527' }}>
+                    <div className="bg-white border-l-4 p-4" style={{ borderColor: '#A0A12F' }}>
                       <p className="text-gray-700 font-light">✓ Message envoyé avec succès</p>
                       <p className="text-gray-500 text-sm mt-1 font-light">Réponse sous 2h</p>
                     </div>
@@ -397,15 +413,15 @@ export default function ProfessionnelsPage() {
             {/* Informations de contact */}
             <ScrollReveal delay={400}>
               <div className="space-y-6 sm:space-y-8">
-                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 sm:p-8 md:p-12 shadow-2xl">
+                <div className="bg-white rounded-2xl p-6 sm:p-8 md:p-12 shadow-2xl">
                   <h4 className="text-xl sm:text-2xl font-extralight text-gray-700 mb-6 sm:mb-8 tracking-wide">Contact direct</h4>
                   <div className="space-y-4 sm:space-y-6">
                     <a 
                       href="tel:+33612345678" 
                       className="flex items-start gap-6 group border-b border-gray-200 pb-6 last:border-0 last:pb-0"
                     >
-                      <div className="w-10 h-10 flex items-center justify-center border border-gray-400 group-hover:border-gray-700 transition-colors">
-                        <Phone className="w-5 h-5 text-gray-600" />
+                      <div className="w-10 h-10 flex items-center justify-center border-2 transition-colors" style={{ borderColor: '#A0A12F', opacity: 0.3 }}>
+                        <Phone className="w-5 h-5" style={{ color: '#A0A12F' }} />
                       </div>
                       <div className="flex-1">
                         <p className="text-xs font-light text-gray-500 uppercase tracking-wider mb-1">Téléphone</p>
@@ -417,7 +433,7 @@ export default function ProfessionnelsPage() {
                       className="flex items-start gap-6 group border-b border-gray-200 pb-6 last:border-0 last:pb-0"
                     >
                       <div className="w-10 h-10 flex items-center justify-center border border-gray-400 group-hover:border-gray-700 transition-colors">
-                        <Mail className="w-5 h-5 text-gray-600" />
+                        <Mail className="w-5 h-5" style={{ color: '#A0A12F' }} />
                       </div>
                       <div className="flex-1">
                         <p className="text-xs font-light text-gray-500 uppercase tracking-wider mb-1">Email</p>
@@ -431,7 +447,7 @@ export default function ProfessionnelsPage() {
                       className="flex items-start gap-6 group"
                     >
                       <div className="w-10 h-10 flex items-center justify-center border border-gray-400 group-hover:border-gray-700 transition-colors">
-                        <MessageCircle className="w-5 h-5 text-gray-600" />
+                        <MessageCircle className="w-5 h-5" style={{ color: '#A0A12F' }} />
                       </div>
                       <div className="flex-1">
                         <p className="text-xs font-light text-gray-500 uppercase tracking-wider mb-1">WhatsApp</p>
