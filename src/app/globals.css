@@ -21,6 +21,22 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Curseur pointer pour tous les boutons et liens */
+button,
+a,
+[role="button"],
+input[type="submit"],
+input[type="button"] {
+  cursor: pointer;
+}
+
+/* Exception pour les boutons désactivés */
+button:disabled,
+input[type="submit"]:disabled,
+input[type="button"]:disabled {
+  cursor: not-allowed;
+}
+
 /* Animation de défilement pour le bandeau des sociétés */
 @keyframes scroll {
   0% {
@@ -159,6 +175,31 @@ html {
 
 .animation-delay-500 {
   animation-delay: 0.5s;
+  opacity: 0;
+}
+
+.animation-delay-600 {
+  animation-delay: 0.6s;
+  opacity: 0;
+}
+
+.animation-delay-700 {
+  animation-delay: 0.7s;
+  opacity: 0;
+}
+
+.animation-delay-800 {
+  animation-delay: 0.8s;
+  opacity: 0;
+}
+
+.animation-delay-900 {
+  animation-delay: 0.9s;
+  opacity: 0;
+}
+
+.animation-delay-1000 {
+  animation-delay: 1s;
   opacity: 0;
 }
 

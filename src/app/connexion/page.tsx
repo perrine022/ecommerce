@@ -33,7 +33,7 @@ export default function LoginPage() {
 
     try {
       await login(formData);
-      router.push('/compte');
+      router.push('/');
     } catch (err: any) {
       setError(err.message || 'Erreur lors de la connexion');
     } finally {
@@ -48,20 +48,20 @@ export default function LoginPage() {
         <div className="max-w-6xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left side - Marketing content */}
-            <div className="hidden lg:flex flex-col justify-center space-y-8">
-              <div className="space-y-6">
-                <div>
-                  <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight" style={{ color: '#172867' }}>
-                    Bienvenue sur <span style={{ color: '#A0A12F' }}>TradeFood</span>
-                  </h1>
-                  <p className="text-lg leading-relaxed" style={{ color: '#172867', opacity: 0.8 }}>
-                    Reconnectez-vous à votre compte et accédez à tous vos avantages exclusifs en quelques clics.
-                  </p>
-                </div>
+            <div className="hidden lg:flex flex-col justify-center space-y-8 animate-fade-in-left animation-delay-100">
+                <div className="space-y-6">
+                  <div className="animate-fade-in-up">
+                    <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight" style={{ color: '#172867' }}>
+                      Bienvenue sur <span style={{ color: '#A0A12F' }}>TradeFood</span>
+                    </h1>
+                    <p className="text-lg leading-relaxed" style={{ color: '#172867', opacity: 0.8 }}>
+                      Reconnectez-vous à votre compte et accédez à tous vos avantages exclusifs en quelques clics.
+                    </p>
+                  </div>
                 
                 <div className="space-y-4 pt-4">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#A0A12F', opacity: 0.15 }}>
+                  <div className="flex items-start gap-4 animate-fade-in-up animation-delay-200 hover:scale-[1.02] transition-transform duration-300">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 hover:scale-110" style={{ backgroundColor: '#A0A12F', opacity: 0.15 }}>
                       <Zap className="w-6 h-6" style={{ color: '#A0A12F' }} />
                     </div>
                     <div>
@@ -72,8 +72,8 @@ export default function LoginPage() {
                     </div>
                   </div>
                   
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#A0A12F', opacity: 0.15 }}>
+                  <div className="flex items-start gap-4 animate-fade-in-up animation-delay-300 hover:scale-[1.02] transition-transform duration-300">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 hover:scale-110" style={{ backgroundColor: '#A0A12F', opacity: 0.15 }}>
                       <Shield className="w-6 h-6" style={{ color: '#A0A12F' }} />
                     </div>
                     <div>
@@ -84,8 +84,8 @@ export default function LoginPage() {
                     </div>
                   </div>
                   
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#A0A12F', opacity: 0.15 }}>
+                  <div className="flex items-start gap-4 animate-fade-in-up animation-delay-400 hover:scale-[1.02] transition-transform duration-300">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 hover:scale-110" style={{ backgroundColor: '#A0A12F', opacity: 0.15 }}>
                       <Star className="w-6 h-6" style={{ color: '#A0A12F' }} />
                     </div>
                     <div>
@@ -100,13 +100,13 @@ export default function LoginPage() {
             </div>
 
             {/* Right side - Form */}
-            <div className="w-full max-w-md mx-auto lg:mx-0">
-              <div className="bg-white rounded-xl shadow-lg border p-8 lg:p-10" style={{ borderColor: '#A0A12F' }}>
-                <div className="mb-8">
+            <div className="w-full max-w-md mx-auto lg:mx-0 animate-fade-in-right animation-delay-200">
+              <div className="bg-white rounded-xl shadow-lg border p-8 lg:p-10 transition-all duration-500 hover:shadow-xl" style={{ borderColor: '#A0A12F' }}>
+                <div className="mb-8 animate-fade-in-up">
                   <h2 className="text-2xl font-semibold mb-1.5" style={{ color: '#172867' }}>
                     Connexion
                   </h2>
-                  <div className="mt-2 h-1 w-16 rounded-full" style={{ backgroundColor: '#A0A12F' }}></div>
+                  <div className="mt-2 h-1 w-16 rounded-full transition-all duration-500 hover:w-24" style={{ backgroundColor: '#A0A12F' }}></div>
                 </div>
 
                 {error && (
@@ -186,7 +186,7 @@ export default function LoginPage() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 rounded-lg font-semibold text-white transition-all duration-200 hover:opacity-90 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+                    className="w-full py-3 rounded-lg font-semibold text-white transition-all duration-300 hover:opacity-90 hover:shadow-lg hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed mt-6 animate-fade-in-up animation-delay-500"
                     style={{ backgroundColor: '#A0A12F' }}
                   >
                     {loading ? 'Connexion...' : 'Se connecter'}

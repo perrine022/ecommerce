@@ -64,7 +64,7 @@ export default function RegisterPage() {
         type: userType,
         companyName: userType === 'COMPANY' ? formData.companyName : undefined,
       });
-      router.push('/compte');
+      router.push('/');
     } catch (err: any) {
       setError(err.message || 'Erreur lors de l\'inscription');
     } finally {
@@ -79,20 +79,20 @@ export default function RegisterPage() {
         <div className="max-w-6xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left side - Marketing content */}
-            <div className="hidden lg:flex flex-col justify-center space-y-8">
-              <div className="space-y-6">
-                <div>
-                  <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight" style={{ color: '#172867' }}>
-                    Rejoignez <span style={{ color: '#A0A12F' }}>TradeFood</span>
-                  </h1>
-                  <p className="text-lg leading-relaxed" style={{ color: '#172867', opacity: 0.8 }}>
-                    Créez votre compte en quelques secondes et accédez à notre sélection exclusive de produits rares et authentiques.
-                  </p>
-                </div>
+            <div className="hidden lg:flex flex-col justify-center space-y-8 animate-fade-in-left animation-delay-100">
+                <div className="space-y-6">
+                  <div className="animate-fade-in-up">
+                    <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight" style={{ color: '#172867' }}>
+                      Rejoignez <span style={{ color: '#A0A12F' }}>TradeFood</span>
+                    </h1>
+                    <p className="text-lg leading-relaxed" style={{ color: '#172867', opacity: 0.8 }}>
+                      Créez votre compte en quelques secondes et accédez à notre sélection exclusive de produits rares et authentiques.
+                    </p>
+                  </div>
                 
                 <div className="space-y-4 pt-4">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#A0A12F', opacity: 0.15 }}>
+                  <div className="flex items-start gap-4 animate-fade-in-up animation-delay-200 hover:scale-[1.02] transition-transform duration-300">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 hover:scale-110" style={{ backgroundColor: '#A0A12F', opacity: 0.15 }}>
                       <Gift className="w-6 h-6" style={{ color: '#A0A12F' }} />
                     </div>
                     <div>
@@ -103,8 +103,8 @@ export default function RegisterPage() {
                     </div>
                   </div>
                   
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#A0A12F', opacity: 0.15 }}>
+                  <div className="flex items-start gap-4 animate-fade-in-up animation-delay-300 hover:scale-[1.02] transition-transform duration-300">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 hover:scale-110" style={{ backgroundColor: '#A0A12F', opacity: 0.15 }}>
                       <Truck className="w-6 h-6" style={{ color: '#A0A12F' }} />
                     </div>
                     <div>
@@ -115,8 +115,8 @@ export default function RegisterPage() {
                     </div>
                   </div>
                   
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#A0A12F', opacity: 0.15 }}>
+                  <div className="flex items-start gap-4 animate-fade-in-up animation-delay-400 hover:scale-[1.02] transition-transform duration-300">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 hover:scale-110" style={{ backgroundColor: '#A0A12F', opacity: 0.15 }}>
                       <Award className="w-6 h-6" style={{ color: '#A0A12F' }} />
                     </div>
                     <div>
@@ -127,8 +127,8 @@ export default function RegisterPage() {
                     </div>
                   </div>
                   
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#A0A12F', opacity: 0.15 }}>
+                  <div className="flex items-start gap-4 animate-fade-in-up animation-delay-500 hover:scale-[1.02] transition-transform duration-300">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 hover:scale-110" style={{ backgroundColor: '#A0A12F', opacity: 0.15 }}>
                       <Heart className="w-6 h-6" style={{ color: '#A0A12F' }} />
                     </div>
                     <div>
@@ -143,13 +143,13 @@ export default function RegisterPage() {
             </div>
 
             {/* Right side - Form */}
-            <div className="w-full max-w-md mx-auto lg:mx-0">
-              <div className="bg-white rounded-xl shadow-lg border p-8 lg:p-10" style={{ borderColor: '#A0A12F' }}>
-                <div className="mb-8">
+            <div className="w-full max-w-md mx-auto lg:mx-0 animate-fade-in-right animation-delay-200">
+              <div className="bg-white rounded-xl shadow-lg border p-8 lg:p-10 transition-all duration-500 hover:shadow-xl" style={{ borderColor: '#A0A12F' }}>
+                <div className="mb-8 animate-fade-in-up">
                   <h2 className="text-2xl font-semibold mb-1.5" style={{ color: '#172867' }}>
                     Inscription
                   </h2>
-                  <div className="mt-2 h-1 w-16 rounded-full" style={{ backgroundColor: '#A0A12F' }}></div>
+                  <div className="mt-2 h-1 w-16 rounded-full transition-all duration-500 hover:w-24" style={{ backgroundColor: '#A0A12F' }}></div>
                 </div>
 
                 {error && (
@@ -198,7 +198,7 @@ export default function RegisterPage() {
 
                   {/* Nom de l'entreprise (si société) */}
                   {userType === 'COMPANY' && (
-                    <div>
+                    <div className="animate-fade-in-up animation-delay-400">
                       <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
                         Nom de l'entreprise <span className="text-red-500">*</span>
                       </label>
@@ -225,7 +225,7 @@ export default function RegisterPage() {
                   )}
 
                   <div className="grid grid-cols-2 gap-3">
-                    <div>
+                    <div className="animate-fade-in-up animation-delay-500">
                       <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
                         {userType === 'INDIVIDUAL' ? 'Prénom' : 'Prénom du contact'}
                       </label>
@@ -250,7 +250,7 @@ export default function RegisterPage() {
                       </div>
                     </div>
 
-                    <div>
+                    <div className="animate-fade-in-up animation-delay-500">
                       <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
                         {userType === 'INDIVIDUAL' ? 'Nom' : 'Nom du contact'}
                       </label>
@@ -276,7 +276,7 @@ export default function RegisterPage() {
                     </div>
                   </div>
 
-                  <div>
+                  <div className="animate-fade-in-up animation-delay-600">
                     <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
                       Adresse email
                     </label>
@@ -301,7 +301,7 @@ export default function RegisterPage() {
                     </div>
                   </div>
 
-                  <div>
+                  <div className="animate-fade-in-up animation-delay-700">
                     <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
                       Téléphone <span className="normal-case font-normal opacity-50">(optionnel)</span>
                     </label>
@@ -325,7 +325,7 @@ export default function RegisterPage() {
                     </div>
                   </div>
 
-                  <div>
+                  <div className="animate-fade-in-up animation-delay-800">
                     <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
                       Mot de passe
                     </label>
@@ -361,7 +361,7 @@ export default function RegisterPage() {
                     </p>
                   </div>
 
-                  <div>
+                  <div className="animate-fade-in-up animation-delay-900">
                     <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
                       Confirmer le mot de passe
                     </label>
@@ -397,7 +397,7 @@ export default function RegisterPage() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 rounded-lg font-semibold text-white transition-all duration-200 hover:opacity-90 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+                    className="w-full py-3 rounded-lg font-semibold text-white transition-all duration-300 hover:opacity-90 hover:shadow-lg hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed mt-6 animate-fade-in-up animation-delay-1000"
                     style={{ backgroundColor: '#A0A12F' }}
                   >
                     {loading ? 'Inscription...' : 'S\'inscrire'}

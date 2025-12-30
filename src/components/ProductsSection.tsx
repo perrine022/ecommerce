@@ -233,7 +233,7 @@ function ProductCard({ product }: { product: Product }) {
 
   return (
     <Link href={`/produit/${product.id}`} className="group">
-      <div className="bg-white rounded-lg border overflow-hidden hover:shadow-lg transition-all duration-300 h-full flex flex-col hover:border-[#A0A12F]" style={{ borderColor: '#A0A12F', opacity: 0.3 }}>
+      <div className="bg-white rounded-lg border overflow-hidden hover:shadow-lg transition-all duration-300 h-full flex flex-col hover:border-[#A0A12F]" style={{ borderColor: '#A0A12F' }}>
         {/* Image */}
         <div className="relative h-64 w-full overflow-hidden bg-gray-100">
           <Image

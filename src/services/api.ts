@@ -429,4 +429,62 @@ export const paymentApi = {
     request<{ status: string }>(`/api/v1/payments/${paymentIntentId}/status`),
 };
 
+// Professional DTO type
+export interface ProfessionalDTO {
+  id?: string;
+  type?: "CLIENT" | "ENTERPRISE" | "AGENCY" | "PROFESSIONAL";
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  photo?: {
+    url?: string;
+  };
+  reviewUser?: {
+    averageRating?: number;
+  };
+  address?: {
+    city?: string;
+  };
+  category?: string | any;
+  createdAt?: string;
+}
+
+// Favorites endpoints
+export const favoritesAPI = {
+  getFavorites: (userId: string) =>
+    request<ProfessionalDTO[]>(`/api/v1/users/${userId}/favorites`),
+
+  addFavorite: (
+    userId: string,
+    favoriteId: string,
+    type: string,
+    isClient: boolean
+  ) =>
+    request<{ success: boolean }>(`/api/v1/users/${userId}/favorites`, {
+      method: "POST",
+      body: JSON.stringify({
+        favoriteId,
+        type,
+        isClient,
+      }),
+    }),
+
+  removeFavorite: (
+    userId: string,
+    favoriteId: string,
+    type: string,
+    isClient: boolean
+  ) =>
+    request<{ success: boolean }>(
+      `/api/v1/users/${userId}/favorites/${favoriteId}`,
+      {
+        method: "DELETE",
+        body: JSON.stringify({
+          type,
+          isClient,
+        }),
+      }
+    ),
+};
+
 export { ApiError };

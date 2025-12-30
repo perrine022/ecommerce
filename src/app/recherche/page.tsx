@@ -90,7 +90,7 @@ export default function SearchPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {products.map((product) => (
                 <Link key={product.id} href={`/produit/${product.id}`} className="group">
-                  <div className="bg-white rounded-lg border-2 overflow-hidden hover:shadow-lg transition-all duration-300 h-full flex flex-col hover:border-[#A0A12F]/30" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
+                  <div className="bg-white rounded-lg border overflow-hidden hover:shadow-lg transition-all duration-300 h-full flex flex-col hover:border-[#A0A12F]" style={{ borderColor: '#A0A12F' }}>
                     <div className="relative h-64 w-full overflow-hidden bg-gray-100">
                       <Image
                         src={product.image}
