@@ -1,7 +1,7 @@
 /**
  * @author Perrine Honoré
  * @date 2025-12-29
- * Page de catégorie avec produits filtrés
+ * Page de catégorie avec produits filtrés depuis le backend
  */
 
 'use client';
@@ -10,27 +10,75 @@ import { use, useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft, Star, ShoppingCart } from 'lucide-react';
-import { productApi } from '@/services/api';
-import { categories } from '@/lib/products';
-import { Product } from '@/types/product';
+import { productApi, categoryApi } from '@/services/api';
+import { Product, Category } from '@/types/product';
 import { useCart } from '@/contexts/CartContext';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 
 export default function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
-  const category = categories.find(c => c.slug === slug);
+  const [category, setCategory] = useState<Category | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const { addItem } = useCart();
 
+  // Charger toutes les catégories depuis le backend
   useEffect(() => {
-    loadProducts();
-  }, [slug]);
+    loadCategories();
+  }, []);
+
+  // Charger les produits quand la catégorie est trouvée
+  useEffect(() => {
+    if (category && category.sellsyId) {
+      loadProducts();
+    }
+  }, [category]);
+
+  const loadCategories = async () => {
+    try {
+      setCategoriesLoading(true);
+      const categories = await categoryApi.getAll();
+      
+      // Trouver la catégorie correspondant au slug
+      const foundCategory = categories.find((c: any) => {
+        // Créer un slug à partir du nom si nécessaire
+        const categorySlug = c.slug || c.name?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        return categorySlug === slug;
+      });
+
+      if (foundCategory) {
+        // Mapper la catégorie du backend vers le format frontend
+        const mappedCategory: Category = {
+          id: foundCategory.id?.toString() || foundCategory.sellsyId?.toString() || '',
+          sellsyId: foundCategory.sellsyId || foundCategory.id,
+          name: foundCategory.name,
+          slug: foundCategory.slug || slug,
+          description: foundCategory.description,
+          image: foundCategory.image,
+          parentId: foundCategory.parentId,
+        };
+        setCategory(mappedCategory);
+      } else {
+        console.error('Category not found for slug:', slug);
+        setCategory(null);
+      }
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+      setCategory(null);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
 
   const loadProducts = async () => {
+    if (!category?.sellsyId) return;
+    
     setLoading(true);
     try {
-      const response = await productApi.getAll({ category: slug });
+      // Utiliser le sellsyId pour filtrer les produits
+      const response = await productApi.getAll({ categoryId: category.sellsyId });
       setProducts(response.products || []);
     } catch (error) {
       console.error('Failed to load products:', error);
@@ -39,6 +87,17 @@ export default function CategoryPage({ params }: { params: Promise<{ slug: strin
       setLoading(false);
     }
   };
+
+  if (categoriesLoading) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Header />
+        <div className="pt-20 px-4 flex items-center justify-center min-h-[60vh]">
+          <p style={{ color: '#172867' }}>Chargement de la catégorie...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!category) {
     return (
@@ -52,6 +111,7 @@ export default function CategoryPage({ params }: { params: Promise<{ slug: strin
             </Link>
           </div>
         </div>
+        <Footer />
       </div>
     );
   }
@@ -63,6 +123,7 @@ export default function CategoryPage({ params }: { params: Promise<{ slug: strin
         <div className="pt-20 px-4 flex items-center justify-center min-h-[60vh]">
           <p style={{ color: '#172867' }}>Chargement des produits...</p>
         </div>
+        <Footer />
       </div>
     );
   }
@@ -107,6 +168,7 @@ export default function CategoryPage({ params }: { params: Promise<{ slug: strin
         )}
       </div>
       </div>
+      <Footer />
     </div>
   );
 }
@@ -189,4 +251,3 @@ function ProductCard({ product }: { product: Product }) {
     </Link>
   );
 }
-

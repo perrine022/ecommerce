@@ -10,13 +10,14 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Star, ShoppingCart, Search, SlidersHorizontal } from 'lucide-react';
-import { categories } from '@/lib/products';
-import { Product } from '@/types/product';
+import { Product, Category } from '@/types/product';
 import { useCart } from '@/contexts/CartContext';
-import { productApi } from '@/services/api';
+import { productApi, categoryApi } from '@/services/api';
 
 export default function ProductsSection() {
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | 'all'>('all');
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
@@ -28,9 +29,42 @@ export default function ProductsSection() {
     order: 'asc' as 'asc' | 'desc',
   });
 
+  // Charger les catégories depuis le backend
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        setCategoriesLoading(true);
+        const backendCategories = await categoryApi.getAll();
+        // Mapper les catégories du backend vers le format frontend
+        const mappedCategories: Category[] = backendCategories.map((c: any) => ({
+          id: c.id?.toString() || c.sellsyId?.toString() || '',
+          sellsyId: c.sellsyId || c.id,
+          name: c.name,
+          slug: c.slug || c.name?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || '',
+          description: c.description,
+          image: c.image,
+          parentId: c.parentId,
+        }));
+        setCategories(mappedCategories);
+      } catch (error) {
+        console.error('Failed to load categories:', error);
+        // Fallback sur les catégories statiques en cas d'erreur
+        try {
+          const { categories: staticCategories } = await import('@/lib/products');
+          setCategories(staticCategories);
+        } catch (importError) {
+          console.error('Failed to load static categories:', importError);
+        }
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+    loadCategories();
+  }, []);
+
   useEffect(() => {
     loadProducts();
-  }, [selectedCategory, searchQuery, filters]);
+  }, [selectedCategoryId, searchQuery, filters]);
 
   const loadProducts = async () => {
     setLoading(true);
@@ -40,8 +74,9 @@ export default function ProductsSection() {
         limit: 20,
       };
 
-      if (selectedCategory !== 'all') {
-        params.category = selectedCategory;
+      // Utiliser categoryId (sellsyId) pour filtrer les produits
+      if (selectedCategoryId !== 'all') {
+        params.categoryId = selectedCategoryId;
       }
 
       if (searchQuery) {
@@ -171,38 +206,44 @@ export default function ProductsSection() {
         {/* Category Filter */}
         <div className="flex flex-wrap justify-center gap-3 mb-12">
           <button
-            onClick={() => setSelectedCategory('all')}
+            onClick={() => setSelectedCategoryId('all')}
             className={`px-6 py-2 rounded-full font-medium transition-all ${
-              selectedCategory === 'all'
+              selectedCategoryId === 'all'
                 ? 'text-white'
                 : 'border'
             }`}
             style={
-              selectedCategory === 'all'
+              selectedCategoryId === 'all'
                 ? { backgroundColor: '#A0A12F' }
                 : { borderColor: '#A0A12F', color: '#A0A12F' }
             }
           >
             Tous
           </button>
-          {categories.map((category) => (
-            <button
-              key={category.id}
-              onClick={() => setSelectedCategory(category.slug)}
-              className={`px-6 py-2 rounded-full font-medium transition-all ${
-                selectedCategory === category.slug
-                  ? 'text-white'
-                  : 'border'
-              }`}
-              style={
-                selectedCategory === category.slug
-                  ? { backgroundColor: '#A0A12F' }
-                  : { borderColor: '#A0A12F', color: '#A0A12F' }
-              }
-            >
-              {category.name}
-            </button>
-          ))}
+          {categoriesLoading ? (
+            <div className="px-6 py-2 text-sm" style={{ color: '#172867', opacity: 0.7 }}>
+              Chargement des catégories...
+            </div>
+          ) : (
+            categories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => setSelectedCategoryId(category.sellsyId || 'all')}
+                className={`px-6 py-2 rounded-full font-medium transition-all ${
+                  selectedCategoryId === category.sellsyId
+                    ? 'text-white'
+                    : 'border'
+                }`}
+                style={
+                  selectedCategoryId === category.sellsyId
+                    ? { backgroundColor: '#A0A12F' }
+                    : { borderColor: '#A0A12F', color: '#A0A12F' }
+                }
+              >
+                {category.name}
+              </button>
+            ))
+          )}
         </div>
 
         {/* Products Grid */}

@@ -25,10 +25,12 @@ export interface ProductDetail {
 
 export interface Category {
   id: string;
+  sellsyId?: number; // ID numérique Sellsy pour le filtrage
   name: string;
   slug: string;
   description?: string;
   image?: string;
+  parentId?: number | null; // ID du parent pour la hiérarchie
 }
 
 export interface CartItem {

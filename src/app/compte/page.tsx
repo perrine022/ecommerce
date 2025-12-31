@@ -18,7 +18,7 @@ import { Address, CompanyAddress, CreateCompanyAddressData } from '@/types/addre
 
 export default function AccountPage() {
   const router = useRouter();
-  const { user, logout, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, logout, isAuthenticated, loading: authLoading, refreshUser, updateUser } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
   const [orders, setOrders] = useState<Order[]>([]);
   const [addresses, setAddresses] = useState<CompanyAddress[]>([]);
@@ -54,12 +54,13 @@ export default function AccountPage() {
   const loadAddresses = async () => {
     setLoading(true);
     try {
-      if (!user?.companyId) {
-        console.error('No companyId found for user');
+      if (!user?.id) {
+        console.error('No userId found for user');
         setAddresses([]);
         return;
       }
-      const response = await addressApi.getCompanyAddresses(user.companyId);
+      // Utiliser le nouvel endpoint basé sur userId
+      const response = await addressApi.getUserAddresses(user.id);
       setAddresses(response.data || []);
     } catch (error) {
       console.error('Failed to load addresses:', error);
@@ -691,8 +692,9 @@ function AddressesTab({ addresses, loading, onRefresh, user }: { addresses: Comp
                   onClick={async () => {
                     if (confirm('Êtes-vous sûr de vouloir supprimer cette adresse ?')) {
                       try {
-                        if (user?.companyId) {
-                          await addressApi.deleteCompanyAddress(user.companyId, address.id);
+                        if (user?.id) {
+                          // Utiliser le nouvel endpoint basé sur userId
+                          await addressApi.deleteUserAddress(user.id, address.id);
                           onRefresh();
                         }
                       } catch (error) {
@@ -733,9 +735,42 @@ function AddressForm({ address, onClose, onSuccess, user }: { address: CompanyAd
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.companyId) {
-      alert('Erreur : Aucune entreprise associée à votre compte');
-      return;
+    
+    // Essayer de récupérer l'ID utilisateur
+    let userId = user?.id;
+    
+    if (!userId) {
+      // Rafraîchir l'utilisateur
+      await refreshUser();
+      await new Promise(resolve => setTimeout(resolve, 300));
+      userId = user?.id;
+    }
+    
+    if (!userId) {
+      // Récupérer directement depuis l'API
+      try {
+        const userResponse = await authApi.getCurrentUser();
+        const freshUser = userResponse.user || userResponse;
+        userId = freshUser?.id || freshUser?.userId;
+        
+        console.log('🔍 [COMPTE] User data from API:', freshUser);
+        console.log('🔍 [COMPTE] UserId found:', userId);
+        
+        // Mettre à jour l'utilisateur dans le contexte
+        if (freshUser && !user?.id && userId && user) {
+          updateUser({ ...user, id: userId });
+        }
+        
+        if (!userId) {
+          console.error('❌ [COMPTE] No userId found in user data:', freshUser);
+          alert('Erreur : Impossible de récupérer votre identifiant utilisateur. Veuillez vous déconnecter et vous reconnecter, ou contacter le support.');
+          return;
+        }
+      } catch (error) {
+        console.error('Failed to get user:', error);
+        alert('Erreur : Impossible de récupérer les informations de votre compte. Veuillez réessayer.');
+        return;
+      }
     }
 
     setSaving(true);
@@ -757,9 +792,11 @@ function AddressForm({ address, onClose, onSuccess, user }: { address: CompanyAd
       };
 
       if (address) {
-        await addressApi.updateCompanyAddress(user.companyId, address.id, payload);
+        // Utiliser le nouvel endpoint basé sur userId
+        await addressApi.updateUserAddress(userId, address.id, payload);
       } else {
-        await addressApi.createCompanyAddress(user.companyId, payload);
+        // Utiliser le nouvel endpoint basé sur userId
+        await addressApi.createUserAddress(userId, payload);
       }
       onSuccess();
     } catch (error) {

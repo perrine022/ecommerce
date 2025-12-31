@@ -21,7 +21,7 @@ import Link from 'next/link';
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, getTotal } = useCart();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, refreshUser, updateUser } = useAuth();
   const [step, setStep] = useState(1); // 1: Adresses, 2: Livraison, 3: Paiement
   const [addresses, setAddresses] = useState<CompanyAddress[]>([]);
   const [billingAddressId, setBillingAddressId] = useState<string>('');
@@ -60,15 +60,25 @@ export default function CheckoutPage() {
     }
 
     loadAddresses();
-  }, [isAuthenticated, items.length, router]);
+  }, [isAuthenticated, items.length, router, user]);
 
   const loadAddresses = async () => {
     try {
-      if (!user?.companyId) {
-        console.error('No companyId found for user');
+      // Rafraîchir l'utilisateur pour s'assurer d'avoir l'ID à jour
+      let currentUser = user;
+      if (!currentUser?.id) {
+        await refreshUser();
+        await new Promise(resolve => setTimeout(resolve, 200));
+        currentUser = user;
+      }
+      
+      if (!currentUser?.id) {
+        console.error('No user ID found');
         return;
       }
-      const response = await addressApi.getCompanyAddresses(user.companyId);
+      
+      // Utiliser le nouvel endpoint basé sur userId
+      const response = await addressApi.getUserAddresses(currentUser.id);
       setAddresses(response.data || []);
       // Sélectionner la première adresse de facturation et de livraison par défaut
       const firstBilling = response.data?.find(a => a.is_invoicing_address);
@@ -146,19 +156,76 @@ export default function CheckoutPage() {
   };
 
   const handleSaveAddress = async () => {
-    if (!user?.companyId) {
-      alert('Erreur : Aucune entreprise associée à votre compte');
-      return;
-    }
-
+    console.log('🚀 [CHECKOUT] handleSaveAddress called');
+    console.log('🚀 [CHECKOUT] Form data:', addressFormData);
+    console.log('🚀 [CHECKOUT] Address type:', addressFormType);
+    
     setSavingAddress(true);
     try {
+      // Récupérer l'ID utilisateur - essayer d'abord depuis le contexte, sinon depuis l'API
+      let userId = user?.id;
+      console.log('🔍 [CHECKOUT] Initial userId from user:', userId);
+      
+      if (!userId) {
+        console.log('🔄 [CHECKOUT] Refreshing user...');
+        // Rafraîchir l'utilisateur depuis le contexte
+        await refreshUser();
+        // Attendre un court instant pour que le state se mette à jour
+        await new Promise(resolve => setTimeout(resolve, 300));
+        // Re-récupérer l'utilisateur depuis le contexte après refresh
+        userId = user?.id;
+        console.log('🔍 [CHECKOUT] UserId after refresh:', userId);
+      }
+      
+      if (!userId) {
+        console.log('🔄 [CHECKOUT] Fetching user directly from API...');
+        // Si toujours pas d'userId, récupérer directement depuis l'API
+        try {
+          const { authApi } = await import('@/services/api');
+          const userResponse = await authApi.getCurrentUser();
+          const freshUser = userResponse.user || userResponse;
+          
+          userId = freshUser?.id || freshUser?.userId;
+          
+          console.log('🔍 [CHECKOUT] User data from API:', freshUser);
+          console.log('🔍 [CHECKOUT] UserId found:', userId);
+          console.log('🔍 [CHECKOUT] Available user fields:', Object.keys(freshUser || {}));
+          
+          // Mettre à jour l'utilisateur dans le contexte avec les données fraîches
+          if (freshUser && !user?.id && userId && user) {
+            updateUser({ ...user, id: userId });
+          }
+          
+          if (!userId) {
+            console.error('❌ [CHECKOUT] No userId found in user data:', freshUser);
+            alert('Erreur : Impossible de récupérer votre identifiant utilisateur. Veuillez vous déconnecter et vous reconnecter, ou contacter le support.');
+            setSavingAddress(false);
+            return;
+          }
+        } catch (error) {
+          console.error('❌ [CHECKOUT] Failed to get user:', error);
+          alert('Erreur : Impossible de récupérer les informations de votre compte. Veuillez réessayer.');
+          setSavingAddress(false);
+          return;
+        }
+      }
+
+      // Créer l'adresse avec le userId récupéré
+      console.log('📝 [CHECKOUT] Converting address data...');
       const companyAddressData = convertToCompanyAddress(addressFormData, addressFormType);
-      const newAddress = await addressApi.createCompanyAddress(user.companyId, companyAddressData);
+      console.log('📝 [CHECKOUT] Address data:', companyAddressData);
+      console.log('📝 [CHECKOUT] Calling API with userId:', userId);
+      
+      // Utiliser le nouvel endpoint basé sur userId
+      const newAddress = await addressApi.createUserAddress(userId, companyAddressData);
+      console.log('✅ [CHECKOUT] Address created successfully:', newAddress);
+      
       await loadAddresses(); // Recharger les adresses
       
       // Sélectionner automatiquement la nouvelle adresse
-      const addressId = newAddress.address?.id || newAddress.id;
+      const addressId = newAddress.address?.id || newAddress.id || newAddress.data?.id;
+      console.log('📍 [CHECKOUT] New address ID:', addressId);
+      
       if (addressFormType === 'billing') {
         setBillingAddressId(addressId);
       } else {
@@ -167,9 +234,17 @@ export default function CheckoutPage() {
       }
       
       setShowAddressForm(false);
-    } catch (error) {
-      console.error('Failed to save address:', error);
-      alert('Erreur lors de la sauvegarde de l\'adresse');
+      console.log('✅ [CHECKOUT] Address saved and form closed');
+    } catch (error: any) {
+      console.error('❌ [CHECKOUT] Failed to save address:', error);
+      console.error('❌ [CHECKOUT] Error details:', {
+        message: error?.message,
+        status: error?.status,
+        data: error?.data,
+        stack: error?.stack
+      });
+      const errorMessage = error?.message || error?.data?.message || 'Erreur lors de la sauvegarde de l\'adresse';
+      alert(`Erreur : ${errorMessage}`);
     } finally {
       setSavingAddress(false);
     }
@@ -713,7 +788,12 @@ export default function CheckoutPage() {
                   Annuler
                 </button>
                 <button
-                  onClick={handleSaveAddress}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    console.log('🖱️ [CHECKOUT] Button clicked!');
+                    console.log('🖱️ [CHECKOUT] Button disabled?', savingAddress || !addressFormData.firstName || !addressFormData.lastName || !addressFormData.addressLine1 || !addressFormData.city || !addressFormData.postalCode || !addressFormData.country);
+                    handleSaveAddress();
+                  }}
                   disabled={savingAddress || !addressFormData.firstName || !addressFormData.lastName || !addressFormData.addressLine1 || !addressFormData.city || !addressFormData.postalCode || !addressFormData.country}
                   className="flex-1 px-6 py-3 rounded-lg font-medium text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ backgroundColor: '#A0A12F' }}

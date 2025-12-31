@@ -11,11 +11,10 @@ import { Menu, X, ShoppingCart, User, Search, X as CloseIcon, LogOut, Settings }
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { categories } from '@/lib/products';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { productApi } from '@/services/api';
-import { Product } from '@/types/product';
+import { productApi, categoryApi } from '@/services/api';
+import { Product, Category } from '@/types/product';
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -26,6 +25,7 @@ export default function Header() {
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const searchDropdownRef = useRef<HTMLDivElement>(null);
@@ -41,6 +41,36 @@ export default function Header() {
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Charger les catégories depuis le backend
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const backendCategories = await categoryApi.getAll();
+        // Mapper les catégories du backend vers le format frontend
+        const mappedCategories: Category[] = backendCategories.map((c: any) => ({
+          id: c.id?.toString() || c.sellsyId?.toString() || '',
+          sellsyId: c.sellsyId || c.id,
+          name: c.name,
+          slug: c.slug || c.name?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || '',
+          description: c.description,
+          image: c.image,
+          parentId: c.parentId,
+        }));
+        setCategories(mappedCategories);
+      } catch (error) {
+        console.error('Failed to load categories:', error);
+        // Fallback sur les catégories statiques en cas d'erreur
+        try {
+          const { categories: staticCategories } = await import('@/lib/products');
+          setCategories(staticCategories);
+        } catch (importError) {
+          console.error('Failed to load static categories:', importError);
+        }
+      }
+    };
+    loadCategories();
   }, []);
 
   // Focus sur le champ de recherche quand il s'ouvre
@@ -156,15 +186,6 @@ export default function Header() {
               style={{ color: '#172867' }}
             >
               Nouveautés
-            </Link>
-
-            {/* Promotions - Deuxième pour attirer avec les offres */}
-            <Link 
-              href="/promotions" 
-              className="text-sm font-medium hover:opacity-80 transition-colors"
-              style={{ color: '#172867' }}
-            >
-              Promotions
             </Link>
 
             {/* Catégories Dropdown - Navigation principale au centre */}
@@ -456,16 +477,6 @@ export default function Header() {
               style={{ color: '#172867' }}
             >
               Nouveautés
-            </Link>
-
-            {/* Promotions - Deuxième pour attirer avec les offres */}
-            <Link 
-              href="/promotions"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="block text-base font-medium"
-              style={{ color: '#172867' }}
-            >
-              Promotions
             </Link>
 
             {/* Catégories - Navigation principale */}
