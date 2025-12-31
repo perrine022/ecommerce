@@ -718,6 +718,7 @@ function AddressesTab({ addresses, loading, onRefresh, user }: { addresses: Comp
 }
 
 function AddressForm({ address, onClose, onSuccess, user }: { address: CompanyAddress | null; onClose: () => void; onSuccess: () => void; user: any }) {
+  const { user: currentUser, refreshUser, updateUser } = useAuth();
   const [formData, setFormData] = useState<CreateCompanyAddressData>({
     name: address?.name || '',
     address_line_1: address?.address_line_1 || '',
@@ -737,13 +738,13 @@ function AddressForm({ address, onClose, onSuccess, user }: { address: CompanyAd
     e.preventDefault();
     
     // Essayer de récupérer l'ID utilisateur
-    let userId = user?.id;
+    let userId = currentUser?.id || user?.id;
     
     if (!userId) {
       // Rafraîchir l'utilisateur
       await refreshUser();
       await new Promise(resolve => setTimeout(resolve, 300));
-      userId = user?.id;
+      userId = currentUser?.id || user?.id;
     }
     
     if (!userId) {
@@ -757,8 +758,8 @@ function AddressForm({ address, onClose, onSuccess, user }: { address: CompanyAd
         console.log('🔍 [COMPTE] UserId found:', userId);
         
         // Mettre à jour l'utilisateur dans le contexte
-        if (freshUser && !user?.id && userId && user) {
-          updateUser({ ...user, id: userId });
+        if (freshUser && !currentUser?.id && userId && currentUser) {
+          updateUser({ ...currentUser, id: userId });
         }
         
         if (!userId) {
