@@ -135,7 +135,7 @@ function SearchPageContent() {
                           </span>
                         </div>
                       )}
-                      <div className="flex items-center justify-between mt-auto pt-4 border-t" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
+                      <div className="flex items-center justify-between mt-auto pt-4 border-t" style={{ borderColor: 'rgba(160, 161, 47, 0.2)' }}>
                         <div className="flex flex-col">
                           <span className="text-2xl font-bold" style={{ color: '#A0A12F' }}>
                             {product.price.toFixed(2)} €

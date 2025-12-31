@@ -63,9 +63,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (data: RegisterData) => {
     const response = await authApi.register(data);
     localStorage.setItem('auth_token', response.token);
-    // Récupérer les infos utilisateur après inscription
-    const userResponse = await authApi.getCurrentUser();
-    setUser(userResponse.user || userResponse);
+    // Ne pas appeler /me immédiatement après l'inscription
+    // L'utilisateur peut ne pas être encore complètement créé dans la base (synchronisation Sellsy)
+    // On attend un court délai avant de récupérer les infos utilisateur
+    setTimeout(async () => {
+      try {
+        const userResponse = await authApi.getCurrentUser();
+        setUser(userResponse.user || userResponse);
+      } catch (error) {
+        console.error('Failed to get current user after registration:', error);
+        // Ne pas afficher d'erreur, l'utilisateur sera récupéré lors du prochain refresh
+      }
+    }, 500);
   };
 
   const logout = async () => {

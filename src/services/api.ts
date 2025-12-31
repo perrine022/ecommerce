@@ -5,7 +5,7 @@
  */
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://ecommerce-back-kmqe.onrender.com";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 class ApiError extends Error {
   constructor(message: string, public status: number, public data?: any) {
@@ -109,6 +109,7 @@ export const authApi = {
     type?: "INDIVIDUAL" | "COMPANY";
     companyName?: string;
     phone?: string;
+    siren?: string;
   }) =>
     request<{ token: string }>("/api/v1/auth/register", {
       method: "POST",
@@ -133,14 +134,21 @@ export const authApi = {
       }
     ),
 
-  changePassword: (data: { currentPassword: string; newPassword: string }) =>
-    request<{ message: string }>("/api/v1/auth/change-password", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
+  changePassword: (oldPassword: string, newPassword: string) =>
+    request<{ message: string }>(
+      `/api/v1/auth/change-password?oldPassword=${encodeURIComponent(oldPassword)}&newPassword=${encodeURIComponent(newPassword)}`,
+      {
+        method: "POST",
+      }
+    ),
 
   // Utilise /me pour récupérer l'utilisateur actuel (plus direct)
   getCurrentUser: () => request<any>("/api/v1/users/me"),
+
+  validateSirene: (sirene: string) =>
+    request<{ name: string; address: string; siret: string }>(
+      `/api/sirene/validate?sirene=${encodeURIComponent(sirene)}`
+    ),
 
   logout: () => {
     if (typeof window !== "undefined") {
@@ -360,6 +368,13 @@ export const orderApi = {
       }
     ),
 
+  // PUT /api/v1/orders/{orderId}/addresses - Définit les adresses de facturation et de livraison
+  setAddresses: (orderId: string, data: { invoicingAddressId: number | string; deliveryAddressId: number | string }) =>
+    request<{ message: string }>(`/api/v1/orders/${orderId}/addresses`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
   // Endpoints non documentés mais potentiellement utiles
   syncFromSellsy: () =>
     request<{ message: string; count: number }>("/api/v1/orders/sync", {
@@ -373,8 +388,9 @@ export const orderApi = {
     }),
 };
 
-// Address endpoints (à adapter selon votre backend)
+// Address endpoints pour les entreprises (Sellsy)
 export const addressApi = {
+  // Anciens endpoints (pour compatibilité)
   getAll: () => request<{ addresses: any[] }>("/api/v1/addresses"),
 
   getById: (id: string) => request<{ address: any }>(`/api/v1/addresses/${id}`),
@@ -400,6 +416,102 @@ export const addressApi = {
     request<{ address: any }>(`/api/v1/addresses/${id}/default`, {
       method: "PUT",
       body: JSON.stringify({ type }),
+    }),
+
+  // Nouveaux endpoints pour les adresses d'entreprise
+  // Créer une adresse d'entreprise
+  // Endpoint: POST /api/v1/addresses/company/{companyId}
+  // companyId: Long (nombre) - L'identifiant Sellsy de l'entreprise (ex: 6657)
+  // Le backend initialise automatiquement les champs texte non fournis à "" pour éviter les erreurs Sellsy
+  createCompanyAddress: (companyId: string | number, data: {
+    name: string;
+    address_line_1: string;
+    address_line_2?: string;
+    address_line_3?: string;
+    address_line_4?: string;
+    postal_code: string;
+    city: string;
+    country_code: string;
+    is_invoicing_address: boolean;
+    is_delivery_address: boolean;
+    geocode?: { lat: number; lng: number };
+  }) => {
+    // S'assurer que tous les champs texte optionnels sont initialisés à "" s'ils ne sont pas fournis
+    const payload = {
+      name: data.name,
+      address_line_1: data.address_line_1,
+      address_line_2: data.address_line_2 || "",
+      address_line_3: data.address_line_3 || "",
+      address_line_4: data.address_line_4 || "",
+      postal_code: data.postal_code,
+      city: data.city,
+      country_code: data.country_code,
+      is_invoicing_address: data.is_invoicing_address,
+      is_delivery_address: data.is_delivery_address,
+      ...(data.geocode && { geocode: data.geocode }),
+    };
+    
+    // Convertir companyId en string pour l'URL (le backend accepte string ou number dans l'URL)
+    const companyIdStr = String(companyId);
+    
+    return request<any>(`/api/v1/addresses/company/${companyIdStr}`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // Récupérer les adresses d'une entreprise
+  // companyId: Long (nombre) - L'identifiant Sellsy de l'entreprise
+  getCompanyAddresses: (companyId: string | number, limit: number = 25, offset: number = 0) =>
+    request<{ data: any[]; total?: number }>(
+      `/api/v1/addresses/company/${String(companyId)}?limit=${limit}&offset=${offset}`
+    ),
+
+  // Mettre à jour une adresse d'entreprise
+  // Endpoint: PUT /api/v1/addresses/company/{companyId}/{addressId}
+  // companyId: Long (nombre) - L'identifiant Sellsy de l'entreprise
+  // addressId: Long (nombre) - L'identifiant Sellsy de l'adresse
+  updateCompanyAddress: (companyId: string | number, addressId: string | number, data: {
+    name: string;
+    address_line_1: string;
+    address_line_2?: string;
+    address_line_3?: string;
+    address_line_4?: string;
+    postal_code: string;
+    city: string;
+    country_code: string;
+    is_invoicing_address: boolean;
+    is_delivery_address: boolean;
+    geocode?: { lat: number; lng: number };
+  }) => {
+    // S'assurer que tous les champs texte optionnels sont initialisés à "" comme requis par Sellsy
+    const payload = {
+      name: data.name,
+      address_line_1: data.address_line_1,
+      address_line_2: data.address_line_2 || "",
+      address_line_3: data.address_line_3 || "",
+      address_line_4: data.address_line_4 || "",
+      postal_code: data.postal_code,
+      city: data.city,
+      country_code: data.country_code,
+      is_invoicing_address: data.is_invoicing_address,
+      is_delivery_address: data.is_delivery_address,
+      ...(data.geocode && { geocode: data.geocode }),
+    };
+    
+    return request<any>(`/api/v1/addresses/company/${String(companyId)}/${String(addressId)}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // Supprimer une adresse d'entreprise
+  // Endpoint: DELETE /api/v1/addresses/company/{companyId}/{addressId}
+  // companyId: Long (nombre) - L'identifiant Sellsy de l'entreprise
+  // addressId: Long (nombre) - L'identifiant Sellsy de l'adresse
+  deleteCompanyAddress: (companyId: string | number, addressId: string | number) =>
+    request<{ message: string }>(`/api/v1/addresses/company/${String(companyId)}/${String(addressId)}`, {
+      method: "DELETE",
     }),
 };
 

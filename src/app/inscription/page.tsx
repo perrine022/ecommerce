@@ -6,13 +6,14 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { Eye, EyeOff, Mail, Lock, User, Phone, Gift, Truck, Award, Heart } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Phone, Gift, Truck, Award, Heart, Building2, Loader2 } from 'lucide-react';
+import { authApi } from '@/services/api';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -21,8 +22,8 @@ export default function RegisterPage() {
     email: '',
     password: '',
     confirmPassword: '',
-    firstName: '',
-    lastName: '',
+    companyName: '',
+    siren: '',
     phone: '',
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -30,10 +31,73 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [validatingSiren, setValidatingSiren] = useState(false);
+  const [sirenValid, setSirenValid] = useState<boolean | null>(null);
+  const [sirenError, setSirenError] = useState('');
+
+  const validateSiren = useCallback(async (siren: string) => {
+    setValidatingSiren(true);
+    setSirenError('');
+    setSirenValid(null);
+
+    try {
+      const data = await authApi.validateSirene(siren);
+      // Remplir automatiquement les champs
+      setFormData(prev => ({
+        ...prev,
+        companyName: data.name || prev.companyName,
+      }));
+      setSirenValid(true);
+      setSirenError('');
+    } catch (err: any) {
+      setSirenValid(false);
+      // Afficher un message générique pour les erreurs 400/404 (entreprise non trouvée ou invalide)
+      if (err.status === 400 || err.status === 404) {
+        setSirenError('L\'entreprise n\'est pas valide');
+      } else {
+        setSirenError('Erreur lors de la validation du SIREN');
+      }
+    } finally {
+      setValidatingSiren(false);
+    }
+  }, []);
+
+  // Validation automatique du SIREN quand 9 chiffres sont saisis
+  useEffect(() => {
+    const sirenDigits = formData.siren.replace(/\D/g, '');
+    if (sirenDigits.length === 9) {
+      validateSiren(sirenDigits);
+    } else {
+      setSirenValid(null);
+      setSirenError('');
+    }
+  }, [formData.siren, validateSiren]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Vérifier que le SIREN est valide
+    const sirenDigits = formData.siren.replace(/\D/g, '');
+    if (sirenDigits.length !== 9) {
+      setError('Le SIREN doit contenir 9 chiffres');
+      return;
+    }
+
+    if (sirenValid === false) {
+      setError('Impossible de s\'inscrire : la société n\'existe pas dans la base SIRENE');
+      return;
+    }
+
+    if (sirenValid === null || validatingSiren) {
+      setError('Veuillez attendre la validation du SIREN');
+      return;
+    }
+
+    if (!formData.companyName.trim()) {
+      setError('Le nom de la société est obligatoire');
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setError('Les mots de passe ne correspondent pas');
@@ -51,12 +115,14 @@ export default function RegisterPage() {
       await register({
         email: formData.email,
         password: formData.password,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
+        firstName: formData.companyName, // On utilise companyName comme firstName pour le backend
+        lastName: '', // Pas de lastName pour une société
         phone: formData.phone || undefined,
-        type: 'INDIVIDUAL',
+        type: 'COMPANY',
+        companyName: formData.companyName,
+        siren: formData.siren,
       });
-      router.push('/');
+      router.push('/inscription/confirmation');
     } catch (err: any) {
       setError(err.message || 'Erreur lors de l\'inscription');
     } finally {
@@ -151,61 +217,99 @@ export default function RegisterPage() {
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="animate-fade-in-up animation-delay-300">
-                      <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
-                        Prénom
-                      </label>
-                      <div className="relative">
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                          <User className="w-4 h-4 transition-colors" style={{ color: focusedField === 'firstName' ? '#A0A12F' : '#172867', opacity: focusedField === 'firstName' ? 0.8 : 0.4 }} />
-                        </div>
-                        <input
-                          type="text"
-                          required
-                          value={formData.firstName}
-                          onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                          onFocus={() => setFocusedField('firstName')}
-                          onBlur={() => setFocusedField(null)}
-                          className="w-full pl-10 pr-4 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white"
-                          style={{ 
-                            borderColor: focusedField === 'firstName' ? '#A0A12F' : 'rgba(160, 161, 47, 0.3)',
-                            color: '#172867',
-                          }}
-                          placeholder="Jean"
-                        />
+                  {/* Champ SIREN */}
+                  <div className="animate-fade-in-up animation-delay-300">
+                    <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
+                      SIREN <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                        <Building2 className="w-4 h-4 transition-colors" style={{ color: focusedField === 'siren' ? '#A0A12F' : '#172867', opacity: focusedField === 'siren' ? 0.8 : 0.4 }} />
                       </div>
+                      <input
+                        type="text"
+                        required
+                        value={formData.siren}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, '').slice(0, 9);
+                          setFormData({ ...formData, siren: value });
+                        }}
+                        onFocus={() => setFocusedField('siren')}
+                        onBlur={() => setFocusedField(null)}
+                        className="w-full pl-10 pr-10 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white"
+                        style={{ 
+                          borderColor: sirenValid === false 
+                            ? '#ef4444' 
+                            : sirenValid === true 
+                            ? '#10b981' 
+                            : focusedField === 'siren' 
+                            ? '#A0A12F' 
+                            : 'rgba(160, 161, 47, 0.3)',
+                          color: '#172867',
+                        }}
+                        placeholder="123456789"
+                        maxLength={9}
+                      />
+                      {validatingSiren && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <Loader2 className="w-4 h-4 animate-spin" style={{ color: '#A0A12F' }} />
+                        </div>
+                      )}
+                      {!validatingSiren && sirenValid === true && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <svg className="w-4 h-4" style={{ color: '#10b981' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      )}
+                      {!validatingSiren && sirenValid === false && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <svg className="w-4 h-4" style={{ color: '#ef4444' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </div>
+                      )}
                     </div>
+                    {sirenError && (
+                      <p className="mt-1 text-xs text-red-600">{sirenError}</p>
+                    )}
+                    {sirenValid === true && (
+                      <p className="mt-1 text-xs" style={{ color: '#10b981' }}>Société validée</p>
+                    )}
+                    <p className="mt-1 text-xs" style={{ color: '#172867', opacity: 0.5 }}>
+                      9 chiffres requis
+                    </p>
+                  </div>
 
-                    <div className="animate-fade-in-up animation-delay-300">
-                      <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
-                        Nom
-                      </label>
-                      <div className="relative">
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                          <User className="w-4 h-4 transition-colors" style={{ color: focusedField === 'lastName' ? '#A0A12F' : '#172867', opacity: focusedField === 'lastName' ? 0.8 : 0.4 }} />
-                        </div>
-                        <input
-                          type="text"
-                          required
-                          value={formData.lastName}
-                          onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                          onFocus={() => setFocusedField('lastName')}
-                          onBlur={() => setFocusedField(null)}
-                          className="w-full pl-10 pr-4 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white"
-                          style={{ 
-                            borderColor: focusedField === 'lastName' ? '#A0A12F' : 'rgba(160, 161, 47, 0.3)',
-                            color: '#172867',
-                          }}
-                          placeholder="Dupont"
-                        />
+                  {/* Nom de société */}
+                  <div className="animate-fade-in-up animation-delay-400">
+                    <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
+                      Nom de la société <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                        <Building2 className="w-4 h-4 transition-colors" style={{ color: focusedField === 'companyName' ? '#A0A12F' : '#172867', opacity: focusedField === 'companyName' ? 0.8 : 0.4 }} />
                       </div>
+                      <input
+                        type="text"
+                        required
+                        value={formData.companyName}
+                        onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                        onFocus={() => setFocusedField('companyName')}
+                        onBlur={() => setFocusedField(null)}
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white"
+                        style={{ 
+                          borderColor: focusedField === 'companyName' ? '#A0A12F' : 'rgba(160, 161, 47, 0.3)',
+                          color: '#172867',
+                        }}
+                        placeholder="Nom de votre entreprise"
+                      />
                     </div>
                   </div>
 
-                  <div className="animate-fade-in-up animation-delay-400">
+                  <div className="animate-fade-in-up animation-delay-500">
                     <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
-                      Adresse email
+                      Adresse email <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
@@ -218,7 +322,7 @@ export default function RegisterPage() {
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         onFocus={() => setFocusedField('email')}
                         onBlur={() => setFocusedField(null)}
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 bg-white"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white"
                         style={{ 
                           borderColor: focusedField === 'email' ? '#A0A12F' : 'rgba(160, 161, 47, 0.3)',
                           color: '#172867',
@@ -228,7 +332,7 @@ export default function RegisterPage() {
                     </div>
                   </div>
 
-                  <div className="animate-fade-in-up animation-delay-500">
+                  <div className="animate-fade-in-up animation-delay-600">
                     <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
                       Téléphone <span className="normal-case font-normal opacity-50">(optionnel)</span>
                     </label>
@@ -242,7 +346,7 @@ export default function RegisterPage() {
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                         onFocus={() => setFocusedField('phone')}
                         onBlur={() => setFocusedField(null)}
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 bg-white"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white"
                         style={{ 
                           borderColor: focusedField === 'phone' ? '#A0A12F' : 'rgba(160, 161, 47, 0.3)',
                           color: '#172867',
@@ -252,9 +356,9 @@ export default function RegisterPage() {
                     </div>
                   </div>
 
-                  <div className="animate-fade-in-up animation-delay-600">
+                  <div className="animate-fade-in-up animation-delay-700">
                     <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
-                      Mot de passe
+                      Mot de passe <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
@@ -288,7 +392,7 @@ export default function RegisterPage() {
                     </p>
                   </div>
 
-                  <div className="animate-fade-in-up animation-delay-700">
+                  <div className="animate-fade-in-up animation-delay-800">
                     <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
                       Confirmer le mot de passe
                     </label>
@@ -324,7 +428,7 @@ export default function RegisterPage() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 rounded-lg font-semibold text-white transition-all duration-300 hover:opacity-90 hover:shadow-lg hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed mt-6 animate-fade-in-up animation-delay-800"
+                    className="w-full py-3 rounded-lg font-semibold text-white transition-all duration-300 hover:opacity-90 hover:shadow-lg hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed mt-6 animate-fade-in-up animation-delay-900"
                     style={{ backgroundColor: '#A0A12F' }}
                   >
                     {loading ? 'Inscription...' : 'S\'inscrire'}

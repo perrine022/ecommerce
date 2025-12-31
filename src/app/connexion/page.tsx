@@ -12,7 +12,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { Eye, EyeOff, Mail, Lock, Shield, Zap, Star, CheckCircle2 } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Shield, Zap, Star, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,19 +23,28 @@ export default function LoginPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [errorType, setErrorType] = useState<'default' | 'account_not_activated'>('default');
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setErrorType('default');
     setLoading(true);
 
     try {
       await login(formData);
       router.push('/');
     } catch (err: any) {
-      setError(err.message || 'Erreur lors de la connexion');
+      // Détecter l'erreur 403 (compte non activé)
+      if (err.status === 403) {
+        setErrorType('account_not_activated');
+        setError('Votre compte est en attente de validation');
+      } else {
+        setErrorType('default');
+        setError(err.message || 'Erreur lors de la connexion');
+      }
     } finally {
       setLoading(false);
     }
@@ -110,8 +119,34 @@ export default function LoginPage() {
                 </div>
 
                 {error && (
-                  <div className="mb-5 p-3 rounded-lg bg-red-50 border border-red-100">
-                    <p className="text-sm text-red-600">{error}</p>
+                  <div className={`mb-5 p-4 rounded-lg border ${
+                    errorType === 'account_not_activated' 
+                      ? 'bg-amber-50 border-amber-200' 
+                      : 'bg-red-50 border-red-100'
+                  }`}>
+                    <div className="flex items-start gap-3">
+                      {errorType === 'account_not_activated' ? (
+                        <Clock className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#F59E0B' }} />
+                      ) : (
+                        <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-red-600" />
+                      )}
+                      <div className="flex-1">
+                        <p className={`text-sm font-medium mb-1 ${
+                          errorType === 'account_not_activated' 
+                            ? 'text-amber-800' 
+                            : 'text-red-600'
+                        }`}>
+                          {errorType === 'account_not_activated' 
+                            ? 'Votre compte n\'est pas encore activé' 
+                            : error}
+                        </p>
+                        {errorType === 'account_not_activated' && (
+                          <p className="text-xs leading-relaxed" style={{ color: '#172867', opacity: 0.7 }}>
+                            Nous avons bien reçu votre demande d'inscription. Notre équipe est en train de valider votre profil pour garantir la qualité de notre service. Vous recevrez un email de confirmation dès que votre compte sera activé. Merci de votre patience !
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
 

@@ -8,20 +8,20 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Package, Heart, CreditCard, MapPin, LogOut, Settings } from 'lucide-react';
+import { User, Package, MapPin, LogOut, Mail, Phone, Building2, Lock, Eye, EyeOff } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/contexts/AuthContext';
-import { userApi, orderApi, addressApi } from '@/services/api';
+import { userApi, orderApi, addressApi, authApi } from '@/services/api';
 import { Order } from '@/types/order';
-import { Address } from '@/types/address';
+import { Address, CompanyAddress, CreateCompanyAddressData } from '@/types/address';
 
 export default function AccountPage() {
   const router = useRouter();
   const { user, logout, isAuthenticated, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
   const [orders, setOrders] = useState<Order[]>([]);
-  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [addresses, setAddresses] = useState<CompanyAddress[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -54,10 +54,16 @@ export default function AccountPage() {
   const loadAddresses = async () => {
     setLoading(true);
     try {
-      const response = await addressApi.getAll();
-      setAddresses(response.addresses);
+      if (!user?.companyId) {
+        console.error('No companyId found for user');
+        setAddresses([]);
+        return;
+      }
+      const response = await addressApi.getCompanyAddresses(user.companyId);
+      setAddresses(response.data || []);
     } catch (error) {
       console.error('Failed to load addresses:', error);
+      setAddresses([]);
     } finally {
       setLoading(false);
     }
@@ -109,10 +115,7 @@ export default function AccountPage() {
                 {[
                   { id: 'profile', label: 'Mon Profil', icon: User },
                   { id: 'orders', label: 'Mes Commandes', icon: Package },
-                  { id: 'favorites', label: 'Mes Favoris', icon: Heart },
                   { id: 'addresses', label: 'Mes Adresses', icon: MapPin },
-                  { id: 'payment', label: 'Moyens de Paiement', icon: CreditCard },
-                  { id: 'settings', label: 'Paramètres', icon: Settings },
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -147,10 +150,7 @@ export default function AccountPage() {
             <div className="lg:col-span-3">
               {activeTab === 'profile' && <ProfileTab user={user} />}
               {activeTab === 'orders' && <OrdersTab orders={orders} loading={loading} />}
-              {activeTab === 'favorites' && <FavoritesTab />}
-              {activeTab === 'addresses' && <AddressesTab addresses={addresses} loading={loading} onRefresh={loadAddresses} />}
-              {activeTab === 'payment' && <PaymentTab />}
-              {activeTab === 'settings' && <SettingsTab />}
+              {activeTab === 'addresses' && <AddressesTab addresses={addresses} loading={loading} onRefresh={loadAddresses} user={user} />}
             </div>
           </div>
         </div>
@@ -162,13 +162,24 @@ export default function AccountPage() {
 
 function ProfileTab({ user }: { user: any }) {
   const [formData, setFormData] = useState({
-    firstName: user?.firstName || '',
-    lastName: user?.lastName || '',
     email: user?.email || '',
+    companyName: user?.firstName || user?.companyName || '', // firstName contient le nom de société pour les entreprises
+    siren: user?.siren || '',
     phone: user?.phone || '',
   });
+  const [passwordData, setPasswordData] = useState({
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,9 +188,10 @@ function ProfileTab({ user }: { user: any }) {
 
     try {
       // PUT /api/v1/users/profile n'accepte que firstName et lastName selon la doc
+      // Pour les entreprises, on utilise firstName pour le nom de société
       await userApi.updateProfile({
-        firstName: formData.firstName,
-        lastName: formData.lastName,
+        firstName: formData.companyName,
+        lastName: '', // Pas de lastName pour une société
       });
       setMessage({ type: 'success', text: 'Profil mis à jour avec succès' });
     } catch (error: any) {
@@ -189,92 +201,293 @@ function ProfileTab({ user }: { user: any }) {
     }
   };
 
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordMessage(null);
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordMessage({ type: 'error', text: 'Les mots de passe ne correspondent pas' });
+      return;
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      setPasswordMessage({ type: 'error', text: 'Le mot de passe doit contenir au moins 8 caractères' });
+      return;
+    }
+
+    setSavingPassword(true);
+
+    try {
+      await authApi.changePassword(passwordData.oldPassword, passwordData.newPassword);
+      setPasswordMessage({ type: 'success', text: 'Mot de passe modifié avec succès' });
+      setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error: any) {
+      setPasswordMessage({ type: 'error', text: error.message || 'Erreur lors de la modification du mot de passe' });
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
   return (
-    <div className="bg-white rounded-xl border p-6 shadow-sm" style={{ borderColor: '#A0A12F' }}>
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#A0A12F', opacity: 0.1 }}>
-          <User className="w-5 h-5" style={{ color: '#A0A12F' }} />
+    <div className="space-y-6">
+      {/* Formulaire de profil */}
+      <div className="bg-white rounded-xl border p-6 shadow-sm" style={{ borderColor: '#A0A12F' }}>
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#A0A12F', opacity: 0.1 }}>
+            <User className="w-5 h-5" style={{ color: '#A0A12F' }} />
+          </div>
+          <h2 className="text-xl font-bold" style={{ color: '#172867' }}>
+            Mon Profil
+          </h2>
         </div>
-        <h2 className="text-xl font-bold" style={{ color: '#172867' }}>
-          Mon Profil
-        </h2>
+        {message && (
+          <div className={`mb-5 p-3 rounded-lg ${
+            message.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+          }`}>
+            <p className={`text-sm ${message.type === 'success' ? 'text-green-700' : 'text-red-700'}`}>
+              {message.text}
+            </p>
+          </div>
+        )}
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
+              Adresse email <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                <Mail className="w-4 h-4 transition-colors" style={{ color: focusedField === 'email' ? '#A0A12F' : '#172867', opacity: focusedField === 'email' ? 0.8 : 0.4 }} />
+              </div>
+              <input
+                type="email"
+                required
+                value={formData.email}
+                disabled
+                onFocus={() => setFocusedField('email')}
+                onBlur={() => setFocusedField(null)}
+                className="w-full pl-10 pr-4 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-gray-50 cursor-not-allowed"
+                style={{ borderColor: 'rgba(160, 161, 47, 0.3)', color: '#172867' }}
+              />
+            </div>
+            <p className="mt-1.5 text-xs" style={{ color: '#172867', opacity: 0.5 }}>
+              L'email ne peut pas être modifié
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
+              SIREN
+            </label>
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                <Building2 className="w-4 h-4 transition-colors" style={{ color: focusedField === 'siren' ? '#A0A12F' : '#172867', opacity: focusedField === 'siren' ? 0.8 : 0.4 }} />
+              </div>
+              <input
+                type="text"
+                value={formData.siren}
+                disabled
+                onFocus={() => setFocusedField('siren')}
+                onBlur={() => setFocusedField(null)}
+                className="w-full pl-10 pr-4 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-gray-50 cursor-not-allowed"
+                style={{ borderColor: 'rgba(160, 161, 47, 0.3)', color: '#172867' }}
+                placeholder="123456789"
+                maxLength={9}
+              />
+            </div>
+            <p className="mt-1.5 text-xs" style={{ color: '#172867', opacity: 0.5 }}>
+              Le SIREN ne peut pas être modifié
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
+              Nom de la société <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                <Building2 className="w-4 h-4 transition-colors" style={{ color: focusedField === 'companyName' ? '#A0A12F' : '#172867', opacity: focusedField === 'companyName' ? 0.8 : 0.4 }} />
+              </div>
+              <input
+                type="text"
+                required
+                value={formData.companyName}
+                onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                onFocus={() => setFocusedField('companyName')}
+                onBlur={() => setFocusedField(null)}
+                className="w-full pl-10 pr-4 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white"
+                style={{
+                  borderColor: focusedField === 'companyName' ? '#A0A12F' : 'rgba(160, 161, 47, 0.3)',
+                  color: '#172867',
+                }}
+                placeholder="Nom de votre entreprise"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
+              Téléphone
+            </label>
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                <Phone className="w-4 h-4 transition-colors" style={{ color: focusedField === 'phone' ? '#A0A12F' : '#172867', opacity: focusedField === 'phone' ? 0.8 : 0.4 }} />
+              </div>
+              <input
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                onFocus={() => setFocusedField('phone')}
+                onBlur={() => setFocusedField(null)}
+                className="w-full pl-10 pr-4 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white"
+                style={{
+                  borderColor: focusedField === 'phone' ? '#A0A12F' : 'rgba(160, 161, 47, 0.3)',
+                  color: '#172867',
+                }}
+                placeholder="06 12 34 56 78"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-6 py-3 rounded-lg font-semibold text-white transition-all hover:opacity-90 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            style={{ backgroundColor: '#A0A12F' }}
+          >
+            {saving ? 'Enregistrement...' : 'Enregistrer les modifications'}
+          </button>
+        </form>
       </div>
-      {message && (
-        <div className={`mb-5 p-3 rounded-lg ${
-          message.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
-        }`}>
-          <p className={`text-sm ${message.type === 'success' ? 'text-green-700' : 'text-red-700'}`}>
-            {message.text}
-          </p>
-        </div>
-      )}
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
-              Prénom
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.firstName}
-              onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-              className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-1 transition-all"
-              style={{ borderColor: '#A0A12F', color: '#172867' }}
-            />
+
+      {/* Bloc pour modifier le mot de passe */}
+      <div className="bg-white rounded-xl border p-6 shadow-sm" style={{ borderColor: '#A0A12F' }}>
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#A0A12F', opacity: 0.1 }}>
+            <Lock className="w-5 h-5" style={{ color: '#A0A12F' }} />
           </div>
-          <div>
-            <label className="block text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
-              Nom
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.lastName}
-              onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-              className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-1 transition-all"
-              style={{ borderColor: '#A0A12F', color: '#172867' }}
-            />
+          <h2 className="text-xl font-bold" style={{ color: '#172867' }}>
+            Modifier le mot de passe
+          </h2>
+        </div>
+        {passwordMessage && (
+          <div className={`mb-5 p-3 rounded-lg ${
+            passwordMessage.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+          }`}>
+            <p className={`text-sm ${passwordMessage.type === 'success' ? 'text-green-700' : 'text-red-700'}`}>
+              {passwordMessage.text}
+            </p>
           </div>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
-            Email
-          </label>
-          <input
-            type="email"
-            required
-            value={formData.email}
-            disabled
-            className="w-full px-4 py-2.5 border rounded-lg bg-gray-50 cursor-not-allowed"
-            style={{ borderColor: '#A0A12F', color: '#172867' }}
-          />
-          <p className="mt-1.5 text-xs" style={{ color: '#172867', opacity: 0.5 }}>
-            L'email ne peut pas être modifié
-          </p>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
-            Téléphone
-          </label>
-          <input
-            type="tel"
-            value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-1 transition-all"
-            style={{ borderColor: '#A0A12F', opacity: 0.3, color: '#172867' }}
-            placeholder="06 12 34 56 78"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={saving}
-          className="px-6 py-3 rounded-lg font-semibold text-white transition-all hover:opacity-90 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ backgroundColor: '#A0A12F' }}
-        >
-          {saving ? 'Enregistrement...' : 'Enregistrer les modifications'}
-        </button>
-      </form>
+        )}
+        <form onSubmit={handlePasswordSubmit} className="space-y-5">
+          <div>
+            <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
+              Ancien mot de passe <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                <Lock className="w-4 h-4 transition-colors" style={{ color: focusedField === 'oldPassword' ? '#A0A12F' : '#172867', opacity: focusedField === 'oldPassword' ? 0.8 : 0.4 }} />
+              </div>
+              <input
+                type={showOldPassword ? 'text' : 'password'}
+                required
+                value={passwordData.oldPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, oldPassword: e.target.value })}
+                onFocus={() => setFocusedField('oldPassword')}
+                onBlur={() => setFocusedField(null)}
+                className="w-full pl-10 pr-10 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white"
+                style={{
+                  borderColor: focusedField === 'oldPassword' ? '#A0A12F' : 'rgba(160, 161, 47, 0.3)',
+                  color: '#172867',
+                }}
+                placeholder="Votre mot de passe actuel"
+              />
+              <button
+                type="button"
+                onClick={() => setShowOldPassword(!showOldPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                style={{ color: '#172867', opacity: 0.5 }}
+              >
+                {showOldPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
+              Nouveau mot de passe <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                <Lock className="w-4 h-4 transition-colors" style={{ color: focusedField === 'newPassword' ? '#A0A12F' : '#172867', opacity: focusedField === 'newPassword' ? 0.8 : 0.4 }} />
+              </div>
+              <input
+                type={showNewPassword ? 'text' : 'password'}
+                required
+                value={passwordData.newPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                onFocus={() => setFocusedField('newPassword')}
+                onBlur={() => setFocusedField(null)}
+                className="w-full pl-10 pr-10 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white"
+                style={{
+                  borderColor: focusedField === 'newPassword' ? '#A0A12F' : 'rgba(160, 161, 47, 0.3)',
+                  color: '#172867',
+                }}
+                placeholder="Au moins 8 caractères"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword(!showNewPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                style={{ color: '#172867', opacity: 0.5 }}
+              >
+                {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
+              Confirmer le nouveau mot de passe <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                <Lock className="w-4 h-4 transition-colors" style={{ color: focusedField === 'confirmPassword' ? '#A0A12F' : '#172867', opacity: focusedField === 'confirmPassword' ? 0.8 : 0.4 }} />
+              </div>
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                required
+                value={passwordData.confirmPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                onFocus={() => setFocusedField('confirmPassword')}
+                onBlur={() => setFocusedField(null)}
+                className="w-full pl-10 pr-10 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white"
+                style={{
+                  borderColor: focusedField === 'confirmPassword' ? '#A0A12F' : 'rgba(160, 161, 47, 0.3)',
+                  color: '#172867',
+                }}
+                placeholder="Confirmez votre nouveau mot de passe"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                style={{ color: '#172867', opacity: 0.5 }}
+              >
+                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={savingPassword}
+            className="px-6 py-3 rounded-lg font-semibold text-white transition-all hover:opacity-90 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            style={{ backgroundColor: '#A0A12F' }}
+          >
+            {savingPassword ? 'Modification...' : 'Modifier le mot de passe'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
@@ -379,30 +592,9 @@ function OrdersTab({ orders, loading }: { orders: Order[]; loading: boolean }) {
   );
 }
 
-function FavoritesTab() {
-  return (
-    <div className="bg-white rounded-xl border p-6" style={{ borderColor: '#A0A12F' }}>
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#A0A12F', opacity: 0.1 }}>
-          <Heart className="w-5 h-5" style={{ color: '#A0A12F' }} />
-        </div>
-        <h2 className="text-xl font-bold" style={{ color: '#172867' }}>
-          Mes Favoris
-        </h2>
-      </div>
-      <div className="text-center py-8">
-        <Heart className="w-12 h-12 mx-auto mb-4" style={{ color: '#A0A12F' }} />
-        <p style={{ color: '#172867', opacity: 0.7 }}>
-          Vous n'avez pas encore de produits favoris.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function AddressesTab({ addresses, loading, onRefresh }: { addresses: Address[]; loading: boolean; onRefresh: () => void }) {
+function AddressesTab({ addresses, loading, onRefresh, user }: { addresses: CompanyAddress[]; loading: boolean; onRefresh: () => void; user: any }) {
   const [showForm, setShowForm] = useState(false);
-  const [editingAddress, setEditingAddress] = useState<Address | null>(null);
+  const [editingAddress, setEditingAddress] = useState<CompanyAddress | null>(null);
 
   if (loading) {
     return (
@@ -437,6 +629,7 @@ function AddressesTab({ addresses, loading, onRefresh }: { addresses: Address[];
       {showForm && (
         <AddressForm
           address={editingAddress}
+          user={user}
           onClose={() => {
             setShowForm(false);
             setEditingAddress(null);
@@ -458,25 +651,30 @@ function AddressesTab({ addresses, loading, onRefresh }: { addresses: Address[];
             <div key={address.id} className="border rounded-xl p-4 hover:shadow-md transition-shadow" style={{ borderColor: '#A0A12F' }}>
               <div className="flex justify-between items-start mb-2">
                 <h3 className="font-semibold" style={{ color: '#172867' }}>
-                  {address.type === 'billing' ? 'Facturation' : 'Livraison'}
+                  {address.name}
                 </h3>
-                {address.isDefault && (
-                  <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: '#A0A12F', color: 'white' }}>
-                    Par défaut
-                  </span>
-                )}
+                <div className="flex gap-2">
+                  {address.is_invoicing_address && (
+                    <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: '#172867', color: 'white' }}>
+                      Facturation
+                    </span>
+                  )}
+                  {address.is_delivery_address && (
+                    <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: '#A0A12F', color: 'white' }}>
+                      Livraison
+                    </span>
+                  )}
+                </div>
               </div>
               <p className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
-                {address.firstName} {address.lastName}
-                {address.company && <><br />{address.company}</>}
+                {address.address_line_1}
+                {address.address_line_2 && <><br />{address.address_line_2}</>}
+                {address.address_line_3 && <><br />{address.address_line_3}</>}
+                {address.address_line_4 && <><br />{address.address_line_4}</>}
                 <br />
-                {address.addressLine1}
-                {address.addressLine2 && <><br />{address.addressLine2}</>}
+                {address.postal_code} {address.city}
                 <br />
-                {address.postalCode} {address.city}
-                <br />
-                {address.country}
-                {address.phone && <><br />{address.phone}</>}
+                {address.country_code}
               </p>
               <div className="mt-4 flex gap-2">
                 <button
@@ -484,10 +682,29 @@ function AddressesTab({ addresses, loading, onRefresh }: { addresses: Address[];
                     setEditingAddress(address);
                     setShowForm(true);
                   }}
-                  className="text-sm font-medium hover:opacity-80 transition-opacity"
-                  style={{ color: '#172867' }}
+                  className="text-sm font-medium hover:opacity-80 transition-opacity px-3 py-1.5 rounded"
+                  style={{ color: '#172867', border: '1px solid rgba(23, 40, 103, 0.3)' }}
                 >
                   Modifier
+                </button>
+                <button
+                  onClick={async () => {
+                    if (confirm('Êtes-vous sûr de vouloir supprimer cette adresse ?')) {
+                      try {
+                        if (user?.companyId) {
+                          await addressApi.deleteCompanyAddress(user.companyId, address.id);
+                          onRefresh();
+                        }
+                      } catch (error) {
+                        console.error('Failed to delete address:', error);
+                        alert('Erreur lors de la suppression');
+                      }
+                    }
+                  }}
+                  className="text-sm font-medium hover:opacity-80 transition-opacity px-3 py-1.5 rounded text-red-600"
+                  style={{ border: '1px solid rgba(239, 68, 68, 0.3)' }}
+                >
+                  Supprimer
                 </button>
               </div>
             </div>
@@ -498,31 +715,51 @@ function AddressesTab({ addresses, loading, onRefresh }: { addresses: Address[];
   );
 }
 
-function AddressForm({ address, onClose, onSuccess }: { address: Address | null; onClose: () => void; onSuccess: () => void }) {
-  const [formData, setFormData] = useState({
-    type: (address?.type || 'shipping') as 'billing' | 'shipping',
-    firstName: address?.firstName || '',
-    lastName: address?.lastName || '',
-    company: address?.company || '',
-    addressLine1: address?.addressLine1 || '',
-    addressLine2: address?.addressLine2 || '',
+function AddressForm({ address, onClose, onSuccess, user }: { address: CompanyAddress | null; onClose: () => void; onSuccess: () => void; user: any }) {
+  const [formData, setFormData] = useState<CreateCompanyAddressData>({
+    name: address?.name || '',
+    address_line_1: address?.address_line_1 || '',
+    address_line_2: address?.address_line_2 || '',
+    address_line_3: address?.address_line_3 || '',
+    address_line_4: address?.address_line_4 || '',
+    postal_code: address?.postal_code || '',
     city: address?.city || '',
-    postalCode: address?.postalCode || '',
-    country: address?.country || 'France',
-    phone: address?.phone || '',
-    isDefault: address?.isDefault || false,
+    country_code: address?.country_code || 'FR',
+    is_invoicing_address: address?.is_invoicing_address || false,
+    is_delivery_address: address?.is_delivery_address || false,
+    geocode: address?.geocode,
   });
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user?.companyId) {
+      alert('Erreur : Aucune entreprise associée à votre compte');
+      return;
+    }
+
     setSaving(true);
 
     try {
+      // S'assurer que tous les champs texte optionnels sont initialisés à "" comme requis par Sellsy
+      const payload: CreateCompanyAddressData = {
+        name: formData.name,
+        address_line_1: formData.address_line_1,
+        address_line_2: formData.address_line_2 || "",
+        address_line_3: formData.address_line_3 || "",
+        address_line_4: formData.address_line_4 || "",
+        postal_code: formData.postal_code,
+        city: formData.city,
+        country_code: formData.country_code,
+        is_invoicing_address: formData.is_invoicing_address,
+        is_delivery_address: formData.is_delivery_address,
+        ...(formData.geocode && { geocode: formData.geocode }),
+      };
+
       if (address) {
-        await addressApi.update(address.id, formData);
+        await addressApi.updateCompanyAddress(user.companyId, address.id, payload);
       } else {
-        await addressApi.create(formData);
+        await addressApi.createCompanyAddress(user.companyId, payload);
       }
       onSuccess();
     } catch (error) {
@@ -540,146 +777,146 @@ function AddressForm({ address, onClose, onSuccess }: { address: Address | null;
       </h3>
       <div>
         <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
-          Type
-        </label>
-        <select
-          value={formData.type}
-          onChange={(e) => setFormData({ ...formData, type: e.target.value as 'billing' | 'shipping' })}
-          className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-1 transition-all"
-          style={{ borderColor: '#A0A12F', opacity: 0.3, color: '#172867' }}
-        >
-          <option value="shipping">Livraison</option>
-          <option value="billing">Facturation</option>
-        </select>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
-            Prénom
-          </label>
-          <input
-            type="text"
-            required
-            value={formData.firstName}
-            onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-            className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
-            style={{ borderColor: '#172867', color: '#172867' }}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
-            Nom
-          </label>
-          <input
-            type="text"
-            required
-            value={formData.lastName}
-            onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-            className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
-            style={{ borderColor: '#172867', color: '#172867' }}
-          />
-        </div>
-      </div>
-      <div>
-        <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
-          Entreprise (optionnel)
-        </label>
-        <input
-          type="text"
-          value={formData.company}
-          onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-          className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-1 transition-all"
-          style={{ borderColor: '#A0A12F', opacity: 0.3, color: '#172867' }}
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
-          Adresse
+          Nom de l'adresse *
         </label>
         <input
           type="text"
           required
-          value={formData.addressLine1}
-          onChange={(e) => setFormData({ ...formData, addressLine1: e.target.value })}
-          className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-1 transition-all"
-          style={{ borderColor: '#A0A12F', opacity: 0.3, color: '#172867' }}
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-offset-1 transition-all duration-200"
+          style={{ borderColor: 'rgba(160, 161, 47, 0.3)', color: '#172867' }}
+          onFocus={(e) => e.target.style.borderColor = '#A0A12F'}
+          onBlur={(e) => e.target.style.borderColor = 'rgba(160, 161, 47, 0.3)'}
+          placeholder="Ex: Siège social, Entrepôt, Bureau..."
         />
       </div>
       <div>
         <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
-          Complément d'adresse (optionnel)
+          Adresse ligne 1 *
         </label>
         <input
           type="text"
-          value={formData.addressLine2}
-          onChange={(e) => setFormData({ ...formData, addressLine2: e.target.value })}
-          className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-1 transition-all"
-          style={{ borderColor: '#A0A12F', opacity: 0.3, color: '#172867' }}
+          required
+          value={formData.address_line_1}
+          onChange={(e) => setFormData({ ...formData, address_line_1: e.target.value })}
+          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-offset-1 transition-all duration-200"
+          style={{ borderColor: 'rgba(160, 161, 47, 0.3)', color: '#172867' }}
+          onFocus={(e) => e.target.style.borderColor = '#A0A12F'}
+          onBlur={(e) => e.target.style.borderColor = 'rgba(160, 161, 47, 0.3)'}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
+          Adresse ligne 2 (optionnel)
+        </label>
+        <input
+          type="text"
+          value={formData.address_line_2 || ''}
+          onChange={(e) => setFormData({ ...formData, address_line_2: e.target.value })}
+          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-offset-1 transition-all duration-200"
+          style={{ borderColor: 'rgba(160, 161, 47, 0.3)', color: '#172867' }}
+          onFocus={(e) => e.target.style.borderColor = '#A0A12F'}
+          onBlur={(e) => e.target.style.borderColor = 'rgba(160, 161, 47, 0.3)'}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
+          Adresse ligne 3 (optionnel)
+        </label>
+        <input
+          type="text"
+          value={formData.address_line_3 || ''}
+          onChange={(e) => setFormData({ ...formData, address_line_3: e.target.value })}
+          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-offset-1 transition-all duration-200"
+          style={{ borderColor: 'rgba(160, 161, 47, 0.3)', color: '#172867' }}
+          onFocus={(e) => e.target.style.borderColor = '#A0A12F'}
+          onBlur={(e) => e.target.style.borderColor = 'rgba(160, 161, 47, 0.3)'}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
+          Adresse ligne 4 (optionnel)
+        </label>
+        <input
+          type="text"
+          value={formData.address_line_4 || ''}
+          onChange={(e) => setFormData({ ...formData, address_line_4: e.target.value })}
+          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-offset-1 transition-all duration-200"
+          style={{ borderColor: 'rgba(160, 161, 47, 0.3)', color: '#172867' }}
+          onFocus={(e) => e.target.style.borderColor = '#A0A12F'}
+          onBlur={(e) => e.target.style.borderColor = 'rgba(160, 161, 47, 0.3)'}
         />
       </div>
       <div className="grid grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
+            Code postal *
+          </label>
+          <input
+            type="text"
+            required
+            value={formData.postal_code}
+            onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
+            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1 transition-all"
+            style={{ borderColor: 'rgba(160, 161, 47, 0.3)', color: '#172867' }}
+          />
+        </div>
         <div className="col-span-2">
           <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
-            Ville
+            Ville *
           </label>
           <input
             type="text"
             required
             value={formData.city}
             onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-            className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
-            style={{ borderColor: '#172867', color: '#172867' }}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
-            Code postal
-          </label>
-          <input
-            type="text"
-            required
-            value={formData.postalCode}
-            onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
-            className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
-            style={{ borderColor: '#172867', color: '#172867' }}
+            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1 transition-all"
+            style={{ borderColor: 'rgba(160, 161, 47, 0.3)', color: '#172867' }}
           />
         </div>
       </div>
       <div>
         <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
-          Pays
+          Code pays *
         </label>
         <input
           type="text"
           required
-          value={formData.country}
-          onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-          className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-1 transition-all"
-          style={{ borderColor: '#A0A12F', opacity: 0.3, color: '#172867' }}
+          value={formData.country_code}
+          onChange={(e) => setFormData({ ...formData, country_code: e.target.value.toUpperCase() })}
+          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-offset-1 transition-all duration-200"
+          style={{ borderColor: 'rgba(160, 161, 47, 0.3)', color: '#172867' }}
+          onFocus={(e) => e.target.style.borderColor = '#A0A12F'}
+          onBlur={(e) => e.target.style.borderColor = 'rgba(160, 161, 47, 0.3)'}
+          placeholder="FR"
+          maxLength={2}
         />
       </div>
-      <div>
-        <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
-          Téléphone (optionnel)
+      <div className="flex items-center gap-4">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={formData.is_invoicing_address}
+            onChange={(e) => setFormData({ ...formData, is_invoicing_address: e.target.checked })}
+            className="w-5 h-5"
+            style={{ accentColor: '#A0A12F' }}
+          />
+          <span className="text-sm" style={{ color: '#172867' }}>
+            Adresse de facturation
+          </span>
         </label>
-        <input
-          type="tel"
-          value={formData.phone}
-          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-          className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-1 transition-all"
-          style={{ borderColor: '#A0A12F', opacity: 0.3, color: '#172867' }}
-        />
-      </div>
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          checked={formData.isDefault}
-          onChange={(e) => setFormData({ ...formData, isDefault: e.target.checked })}
-          className="w-5 h-5"
-          style={{ accentColor: '#172867' }}
-        />
-        <label className="text-sm" style={{ color: '#172867' }}>
-          Définir comme adresse par défaut
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={formData.is_delivery_address}
+            onChange={(e) => setFormData({ ...formData, is_delivery_address: e.target.checked })}
+            className="w-5 h-5"
+            style={{ accentColor: '#A0A12F' }}
+          />
+          <span className="text-sm" style={{ color: '#172867' }}>
+            Adresse de livraison
+          </span>
         </label>
       </div>
       <div className="flex gap-2">
@@ -695,7 +932,7 @@ function AddressForm({ address, onClose, onSuccess }: { address: Address | null;
           type="button"
           onClick={onClose}
           className="px-6 py-3 rounded-lg font-semibold border transition-all hover:opacity-80"
-          style={{ borderColor: '#A0A12F', color: '#172867' }}
+          style={{ borderColor: 'rgba(160, 161, 47, 0.3)', color: '#172867' }}
         >
           Annuler
         </button>
@@ -704,48 +941,3 @@ function AddressForm({ address, onClose, onSuccess }: { address: Address | null;
   );
 }
 
-function PaymentTab() {
-  return (
-    <div className="bg-white rounded-xl border p-6" style={{ borderColor: '#A0A12F' }}>
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#A0A12F', opacity: 0.1 }}>
-          <CreditCard className="w-5 h-5" style={{ color: '#A0A12F' }} />
-        </div>
-        <h2 className="text-xl font-bold" style={{ color: '#172867' }}>
-          Moyens de Paiement
-        </h2>
-      </div>
-      <button
-        className="px-5 py-2.5 rounded-lg font-semibold text-white transition-all hover:opacity-90 hover:shadow-md text-sm"
-        style={{ backgroundColor: '#A0A12F' }}
-      >
-        + Ajouter une carte
-      </button>
-    </div>
-  );
-}
-
-function SettingsTab() {
-  return (
-    <div className="bg-white rounded-xl border p-6" style={{ borderColor: '#A0A12F' }}>
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#A0A12F', opacity: 0.1 }}>
-          <Settings className="w-5 h-5" style={{ color: '#A0A12F' }} />
-        </div>
-        <h2 className="text-xl font-bold" style={{ color: '#172867' }}>
-          Paramètres
-        </h2>
-      </div>
-      <div className="space-y-4">
-        <label className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
-          <input type="checkbox" className="w-5 h-5" style={{ accentColor: '#A0A12F' }} />
-          <span style={{ color: '#172867' }}>Recevoir les newsletters</span>
-        </label>
-        <label className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
-          <input type="checkbox" className="w-5 h-5" style={{ accentColor: '#A0A12F' }} />
-          <span style={{ color: '#172867' }}>Notifications par email</span>
-        </label>
-      </div>
-    </div>
-  );
-}

@@ -239,3 +239,4 @@ npm install @stripe/stripe-js @stripe/react-stripe-js
 - **Fallback** : En cas d'erreur API, fallback sur les données statiques pour les produits
 
 
+

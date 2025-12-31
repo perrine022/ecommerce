@@ -4,6 +4,8 @@ export interface User {
   firstName: string;
   lastName: string;
   phone?: string;
+  companyId?: string; // ID de l'entreprise dans Sellsy
+  type?: "INDIVIDUAL" | "COMPANY";
   createdAt: string;
   updatedAt: string;
 }
@@ -27,6 +29,7 @@ export interface RegisterData {
   phone?: string;
   type?: "INDIVIDUAL" | "COMPANY";
   companyName?: string;
+  siren?: string;
 }
 
 export interface ResetPasswordData {

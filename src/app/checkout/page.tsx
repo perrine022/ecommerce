@@ -12,8 +12,8 @@ import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { addressApi, shippingApi, orderApi } from '@/services/api';
-import { Address, CreateAddressData } from '@/types/address';
+import { addressApi, shippingApi, orderApi, cartApi } from '@/services/api';
+import { Address, CreateAddressData, CompanyAddress, CreateCompanyAddressData } from '@/types/address';
 import { ShippingMethod } from '@/types/shipping';
 import { ArrowLeft, Plus, MapPin, Truck, X } from 'lucide-react';
 import Link from 'next/link';
@@ -21,9 +21,9 @@ import Link from 'next/link';
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, getTotal } = useCart();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [step, setStep] = useState(1); // 1: Adresses, 2: Livraison, 3: Paiement
-  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [addresses, setAddresses] = useState<CompanyAddress[]>([]);
   const [billingAddressId, setBillingAddressId] = useState<string>('');
   const [shippingAddressId, setShippingAddressId] = useState<string>('');
   const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([]);
@@ -64,12 +64,17 @@ export default function CheckoutPage() {
 
   const loadAddresses = async () => {
     try {
-      const response = await addressApi.getAll();
-      setAddresses(response.addresses);
-      const defaultBilling = response.addresses.find(a => a.type === 'billing' && a.isDefault);
-      const defaultShipping = response.addresses.find(a => a.type === 'shipping' && a.isDefault);
-      if (defaultBilling) setBillingAddressId(defaultBilling.id);
-      if (defaultShipping) setShippingAddressId(defaultShipping.id);
+      if (!user?.companyId) {
+        console.error('No companyId found for user');
+        return;
+      }
+      const response = await addressApi.getCompanyAddresses(user.companyId);
+      setAddresses(response.data || []);
+      // Sélectionner la première adresse de facturation et de livraison par défaut
+      const firstBilling = response.data?.find(a => a.is_invoicing_address);
+      const firstShipping = response.data?.find(a => a.is_delivery_address);
+      if (firstBilling) setBillingAddressId(firstBilling.id);
+      if (firstShipping) setShippingAddressId(firstShipping.id);
     } catch (error) {
       console.error('Failed to load addresses:', error);
     }
@@ -122,18 +127,43 @@ export default function CheckoutPage() {
     }));
   };
 
+  // Convertir le format d'adresse du formulaire vers le format entreprise
+  // Tous les champs texte optionnels sont initialisés à "" comme requis par Sellsy
+  const convertToCompanyAddress = (formData: CreateAddressData, type: 'billing' | 'shipping'): CreateCompanyAddressData => {
+    return {
+      name: `${formData.firstName} ${formData.lastName}${formData.company ? ` - ${formData.company}` : ''}`,
+      address_line_1: formData.addressLine1,
+      address_line_2: formData.addressLine2 || "", // Initialisé à "" si non fourni
+      address_line_3: "", // Toujours initialisé à "" (non utilisé dans le formulaire actuel)
+      address_line_4: "", // Toujours initialisé à "" (non utilisé dans le formulaire actuel)
+      postal_code: formData.postalCode,
+      city: formData.city,
+      country_code: formData.country === 'France' ? 'FR' : formData.country.substring(0, 2).toUpperCase(),
+      is_invoicing_address: type === 'billing',
+      is_delivery_address: type === 'shipping',
+      // geocode est optionnel et n'est pas inclus si non fourni
+    };
+  };
+
   const handleSaveAddress = async () => {
+    if (!user?.companyId) {
+      alert('Erreur : Aucune entreprise associée à votre compte');
+      return;
+    }
+
     setSavingAddress(true);
     try {
-      const newAddress = await addressApi.create(addressFormData);
+      const companyAddressData = convertToCompanyAddress(addressFormData, addressFormType);
+      const newAddress = await addressApi.createCompanyAddress(user.companyId, companyAddressData);
       await loadAddresses(); // Recharger les adresses
       
       // Sélectionner automatiquement la nouvelle adresse
+      const addressId = newAddress.address?.id || newAddress.id;
       if (addressFormType === 'billing') {
-        setBillingAddressId(newAddress.address.id);
+        setBillingAddressId(addressId);
       } else {
-        setShippingAddressId(newAddress.address.id);
-        await handleShippingAddressChange(newAddress.address.id);
+        setShippingAddressId(addressId);
+        await handleShippingAddressChange(addressId);
       }
       
       setShowAddressForm(false);
@@ -161,18 +191,50 @@ export default function CheckoutPage() {
   const handlePlaceOrder = async () => {
     setLoading(true);
     try {
-      // Créer la commande et obtenir les informations de paiement
+      // Étape 1: Préparer le panier en ajoutant tous les produits
+      // Le backend récupère automatiquement le panier de l'utilisateur connecté
+      // On s'assure que le panier backend est à jour en ajoutant tous les produits
+      for (const item of items) {
+        try {
+          await cartApi.addItem(item.product.id, item.quantity);
+        } catch (error) {
+          console.error(`Failed to add product ${item.product.id} to cart:`, error);
+          // Continue même si un produit échoue (peut-être déjà dans le panier)
+        }
+      }
+
+      // Étape 2: Initialiser le checkout et obtenir le clientSecret et orderId
       const { clientSecret, orderId } = await orderApi.checkout();
       
-      // TODO: Remplacer par le lien Stripe fourni par l'utilisateur
-      // Pour l'instant, on redirige vers une page de paiement Stripe
-      const stripeUrl = process.env.NEXT_PUBLIC_STRIPE_CHECKOUT_URL || 'https://checkout.stripe.com';
-      
-      // Rediriger vers Stripe avec les paramètres nécessaires
-      router.push(`${stripeUrl}?orderId=${orderId}&clientSecret=${encodeURIComponent(clientSecret)}`);
-    } catch (error) {
+      // Étape 3: Définir les adresses de facturation et de livraison
+      if (!billingAddressId || !shippingAddressId) {
+        alert('Veuillez sélectionner une adresse de facturation et une adresse de livraison');
+        setLoading(false);
+        return;
+      }
+
+      // Convertir les IDs en nombres (le backend Sellsy attend des nombres)
+      // Les IDs peuvent être des strings ou des nombres selon la réponse de l'API
+      const invoicingAddressId = typeof billingAddressId === 'string' 
+        ? (isNaN(Number(billingAddressId)) ? billingAddressId : Number(billingAddressId))
+        : billingAddressId;
+      const deliveryAddressId = typeof shippingAddressId === 'string'
+        ? (isNaN(Number(shippingAddressId)) ? shippingAddressId : Number(shippingAddressId))
+        : shippingAddressId;
+
+      await orderApi.setAddresses(orderId, {
+        invoicingAddressId: invoicingAddressId as number,
+        deliveryAddressId: deliveryAddressId as number,
+      });
+
+      // Étape 4: Pour le moment, on redirige vers la page de succès
+      // Plus tard, on pourra utiliser le clientSecret avec Stripe Elements
+      // Stocker le clientSecret et orderId pour le paiement Stripe si nécessaire
+      router.push(`/checkout/success?orderId=${orderId}`);
+    } catch (error: any) {
       console.error('Failed to place order:', error);
-      alert('Erreur lors de la création de la commande');
+      const errorMessage = error?.message || error?.data?.message || 'Erreur lors de la création de la commande';
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -216,7 +278,7 @@ export default function CheckoutPage() {
                         Adresse de facturation
                       </label>
                       <div className="space-y-2">
-                        {addresses.filter(a => a.type === 'billing').map((address) => (
+                        {addresses.filter(a => a.is_invoicing_address).map((address) => (
                           <label
                             key={address.id}
                             className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
@@ -234,20 +296,22 @@ export default function CheckoutPage() {
                             />
                             <div className="flex-1">
                               <p className="font-medium" style={{ color: '#172867' }}>
-                                {address.firstName} {address.lastName}
+                                {address.name}
                               </p>
                               <p className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
-                                {address.addressLine1}
-                                {address.addressLine2 && <><br />{address.addressLine2}</>}
+                                {address.address_line_1}
+                                {address.address_line_2 && <><br />{address.address_line_2}</>}
+                                {address.address_line_3 && <><br />{address.address_line_3}</>}
+                                {address.address_line_4 && <><br />{address.address_line_4}</>}
                                 <br />
-                                {address.postalCode} {address.city}
+                                {address.postal_code} {address.city}
                                 <br />
-                                {address.country}
+                                {address.country_code}
                               </p>
                             </div>
                           </label>
                         ))}
-                        {addresses.filter(a => a.type === 'billing').length === 0 && (
+                        {addresses.filter(a => a.is_invoicing_address).length === 0 && (
                           <p className="text-sm text-gray-500 italic">Aucune adresse de facturation</p>
                         )}
                       </div>
@@ -266,7 +330,7 @@ export default function CheckoutPage() {
                         Adresse de livraison
                       </label>
                       <div className="space-y-2">
-                        {addresses.filter(a => a.type === 'shipping').map((address) => (
+                        {addresses.filter(a => a.is_delivery_address).map((address) => (
                           <label
                             key={address.id}
                             className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
@@ -284,20 +348,22 @@ export default function CheckoutPage() {
                             />
                             <div className="flex-1">
                               <p className="font-medium" style={{ color: '#172867' }}>
-                                {address.firstName} {address.lastName}
+                                {address.name}
                               </p>
                               <p className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
-                                {address.addressLine1}
-                                {address.addressLine2 && <><br />{address.addressLine2}</>}
+                                {address.address_line_1}
+                                {address.address_line_2 && <><br />{address.address_line_2}</>}
+                                {address.address_line_3 && <><br />{address.address_line_3}</>}
+                                {address.address_line_4 && <><br />{address.address_line_4}</>}
                                 <br />
-                                {address.postalCode} {address.city}
+                                {address.postal_code} {address.city}
                                 <br />
-                                {address.country}
+                                {address.country_code}
                               </p>
                             </div>
                           </label>
                         ))}
-                        {addresses.filter(a => a.type === 'shipping').length === 0 && (
+                        {addresses.filter(a => a.is_delivery_address).length === 0 && (
                           <p className="text-sm text-gray-500 italic">Aucune adresse de livraison</p>
                         )}
                       </div>
@@ -442,10 +508,7 @@ export default function CheckoutPage() {
                 {step < 3 ? (
                   <button
                     onClick={handleNext}
-                    disabled={
-                      (step === 1 && (!billingAddressId || !shippingAddressId)) ||
-                      (step === 2 && !selectedShippingMethod)
-                    }
+                    disabled={false}
                     className="w-full py-4 rounded-lg font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ backgroundColor: '#172867' }}
                   >
@@ -454,11 +517,11 @@ export default function CheckoutPage() {
                 ) : (
                   <button
                     onClick={handlePlaceOrder}
-                    disabled={loading}
+                    disabled={false}
                     className="w-full py-4 rounded-lg font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ backgroundColor: '#172867' }}
                   >
-                    {loading ? 'Traitement...' : 'Continuer vers le paiement'}
+                    {loading ? 'Création de la commande...' : 'Valider la commande'}
                   </button>
                 )}
               </div>
@@ -493,8 +556,10 @@ export default function CheckoutPage() {
                     type="text"
                     value={addressFormData.firstName}
                     onChange={(e) => handleAddressFormChange('firstName', e.target.value)}
-                    className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
-                    style={{ borderColor: '#A0A12F', color: '#172867' }}
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-offset-1 transition-all duration-200"
+                    style={{ borderColor: 'rgba(160, 161, 47, 0.3)', color: '#172867' }}
+                    onFocus={(e) => e.target.style.borderColor = '#A0A12F'}
+                    onBlur={(e) => e.target.style.borderColor = 'rgba(160, 161, 47, 0.3)'}
                     required
                   />
                 </div>
@@ -506,8 +571,10 @@ export default function CheckoutPage() {
                     type="text"
                     value={addressFormData.lastName}
                     onChange={(e) => handleAddressFormChange('lastName', e.target.value)}
-                    className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
-                    style={{ borderColor: '#A0A12F', color: '#172867' }}
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-offset-1 transition-all duration-200"
+                    style={{ borderColor: 'rgba(160, 161, 47, 0.3)', color: '#172867' }}
+                    onFocus={(e) => e.target.style.borderColor = '#A0A12F'}
+                    onBlur={(e) => e.target.style.borderColor = 'rgba(160, 161, 47, 0.3)'}
                     required
                   />
                 </div>
@@ -521,8 +588,10 @@ export default function CheckoutPage() {
                   type="text"
                   value={addressFormData.company || ''}
                   onChange={(e) => handleAddressFormChange('company', e.target.value)}
-                  className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
-                  style={{ borderColor: '#A0A12F', color: '#172867' }}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-offset-1 transition-all duration-200"
+                  style={{ borderColor: 'rgba(160, 161, 47, 0.3)', color: '#172867' }}
+                  onFocus={(e) => e.target.style.borderColor = '#A0A12F'}
+                  onBlur={(e) => e.target.style.borderColor = 'rgba(160, 161, 47, 0.3)'}
                 />
               </div>
 
@@ -534,8 +603,10 @@ export default function CheckoutPage() {
                   type="text"
                   value={addressFormData.addressLine1}
                   onChange={(e) => handleAddressFormChange('addressLine1', e.target.value)}
-                  className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
-                  style={{ borderColor: '#A0A12F', color: '#172867' }}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-offset-1 transition-all duration-200"
+                  style={{ borderColor: 'rgba(160, 161, 47, 0.3)', color: '#172867' }}
+                  onFocus={(e) => e.target.style.borderColor = '#A0A12F'}
+                  onBlur={(e) => e.target.style.borderColor = 'rgba(160, 161, 47, 0.3)'}
                   required
                 />
               </div>
@@ -548,8 +619,10 @@ export default function CheckoutPage() {
                   type="text"
                   value={addressFormData.addressLine2 || ''}
                   onChange={(e) => handleAddressFormChange('addressLine2', e.target.value)}
-                  className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
-                  style={{ borderColor: '#A0A12F', color: '#172867' }}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-offset-1 transition-all duration-200"
+                  style={{ borderColor: 'rgba(160, 161, 47, 0.3)', color: '#172867' }}
+                  onFocus={(e) => e.target.style.borderColor = '#A0A12F'}
+                  onBlur={(e) => e.target.style.borderColor = 'rgba(160, 161, 47, 0.3)'}
                 />
               </div>
 
@@ -562,8 +635,10 @@ export default function CheckoutPage() {
                     type="text"
                     value={addressFormData.postalCode}
                     onChange={(e) => handleAddressFormChange('postalCode', e.target.value)}
-                    className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
-                    style={{ borderColor: '#A0A12F', color: '#172867' }}
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-offset-1 transition-all duration-200"
+                    style={{ borderColor: 'rgba(160, 161, 47, 0.3)', color: '#172867' }}
+                    onFocus={(e) => e.target.style.borderColor = '#A0A12F'}
+                    onBlur={(e) => e.target.style.borderColor = 'rgba(160, 161, 47, 0.3)'}
                     required
                   />
                 </div>
@@ -575,8 +650,10 @@ export default function CheckoutPage() {
                     type="text"
                     value={addressFormData.city}
                     onChange={(e) => handleAddressFormChange('city', e.target.value)}
-                    className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
-                    style={{ borderColor: '#A0A12F', color: '#172867' }}
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-offset-1 transition-all duration-200"
+                    style={{ borderColor: 'rgba(160, 161, 47, 0.3)', color: '#172867' }}
+                    onFocus={(e) => e.target.style.borderColor = '#A0A12F'}
+                    onBlur={(e) => e.target.style.borderColor = 'rgba(160, 161, 47, 0.3)'}
                     required
                   />
                 </div>
@@ -591,8 +668,10 @@ export default function CheckoutPage() {
                     type="text"
                     value={addressFormData.country}
                     onChange={(e) => handleAddressFormChange('country', e.target.value)}
-                    className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
-                    style={{ borderColor: '#A0A12F', color: '#172867' }}
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-offset-1 transition-all duration-200"
+                    style={{ borderColor: 'rgba(160, 161, 47, 0.3)', color: '#172867' }}
+                    onFocus={(e) => e.target.style.borderColor = '#A0A12F'}
+                    onBlur={(e) => e.target.style.borderColor = 'rgba(160, 161, 47, 0.3)'}
                     required
                   />
                 </div>
@@ -604,8 +683,10 @@ export default function CheckoutPage() {
                     type="tel"
                     value={addressFormData.phone || ''}
                     onChange={(e) => handleAddressFormChange('phone', e.target.value)}
-                    className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none focus:ring-2"
-                    style={{ borderColor: '#A0A12F', color: '#172867' }}
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-offset-1 transition-all duration-200"
+                    style={{ borderColor: 'rgba(160, 161, 47, 0.3)', color: '#172867' }}
+                    onFocus={(e) => e.target.style.borderColor = '#A0A12F'}
+                    onBlur={(e) => e.target.style.borderColor = 'rgba(160, 161, 47, 0.3)'}
                   />
                 </div>
               </div>
@@ -627,8 +708,8 @@ export default function CheckoutPage() {
               <div className="flex gap-4 pt-4">
                 <button
                   onClick={() => setShowAddressForm(false)}
-                  className="flex-1 px-6 py-3 rounded-lg font-medium border-2 transition-all hover:opacity-80"
-                  style={{ borderColor: '#172867', color: '#172867' }}
+                  className="flex-1 px-6 py-3 rounded-lg font-medium border transition-all hover:opacity-80"
+                  style={{ borderColor: 'rgba(23, 40, 103, 0.3)', color: '#172867' }}
                 >
                   Annuler
                 </button>
