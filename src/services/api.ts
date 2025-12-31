@@ -5,7 +5,7 @@
  */
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+  process.env.NEXT_PUBLIC_API_URL || "https://ecommerce-back-kmqe.onrender.com";
 
 class ApiError extends Error {
   constructor(message: string, public status: number, public data?: any) {
@@ -358,7 +358,24 @@ export const orderApi = {
     };
   },
 
-  // POST /api/v1/orders/checkout - Initie le paiement Stripe
+  // POST /api/v1/orders - Finalise une commande et l'envoie à Sellsy
+  // Transforme le panier actuel en commande, enregistre les adresses et envoie à Sellsy V2
+  createOrder: (data: { invoicingAddressId: number | string; deliveryAddressId: number | string }) =>
+    request<{
+      id: string;
+      status: string;
+      totalAmount: number;
+      sellsyOrderId?: string;
+      number?: string;
+      invoicingAddressId: number | string;
+      deliveryAddressId: number | string;
+      [key: string]: any;
+    }>("/api/v1/orders", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // POST /api/v1/orders/checkout - Initie le paiement Stripe (ancien flux, conservé pour compatibilité)
   checkout: () =>
     request<{ clientSecret: string; orderId: string }>(
       "/api/v1/orders/checkout",
@@ -368,7 +385,7 @@ export const orderApi = {
       }
     ),
 
-  // PUT /api/v1/orders/{orderId}/addresses - Définit les adresses de facturation et de livraison
+  // PUT /api/v1/orders/{orderId}/addresses - Définit les adresses de facturation et de livraison (ancien flux, conservé pour compatibilité)
   setAddresses: (orderId: string, data: { invoicingAddressId: number | string; deliveryAddressId: number | string }) =>
     request<{ message: string }>(`/api/v1/orders/${orderId}/addresses`, {
       method: "PUT",

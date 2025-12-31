@@ -177,9 +177,11 @@ export default function CheckoutPage() {
 
   const handleNext = () => {
     if (step === 1) {
+      // À l'étape 1, si les adresses sont sélectionnées, finaliser directement la commande
       if (billingAddressId && shippingAddressId) {
-        handleShippingAddressChange(shippingAddressId);
-        setStep(2);
+        handlePlaceOrder();
+      } else {
+        alert('Veuillez sélectionner une adresse de facturation et une adresse de livraison');
       }
     } else if (step === 2) {
       if (selectedShippingMethod) {
@@ -203,10 +205,7 @@ export default function CheckoutPage() {
         }
       }
 
-      // Étape 2: Initialiser le checkout et obtenir le clientSecret et orderId
-      const { clientSecret, orderId } = await orderApi.checkout();
-      
-      // Étape 3: Définir les adresses de facturation et de livraison
+      // Étape 2: Vérifier que les adresses sont sélectionnées
       if (!billingAddressId || !shippingAddressId) {
         alert('Veuillez sélectionner une adresse de facturation et une adresse de livraison');
         setLoading(false);
@@ -222,15 +221,15 @@ export default function CheckoutPage() {
         ? (isNaN(Number(shippingAddressId)) ? shippingAddressId : Number(shippingAddressId))
         : shippingAddressId;
 
-      await orderApi.setAddresses(orderId, {
+      // Étape 3: Finaliser la commande et l'envoyer à Sellsy
+      // POST /api/v1/orders transforme le panier en commande, enregistre les adresses et envoie à Sellsy V2
+      const order = await orderApi.createOrder({
         invoicingAddressId: invoicingAddressId as number,
         deliveryAddressId: deliveryAddressId as number,
       });
 
-      // Étape 4: Pour le moment, on redirige vers la page de succès
-      // Plus tard, on pourra utiliser le clientSecret avec Stripe Elements
-      // Stocker le clientSecret et orderId pour le paiement Stripe si nécessaire
-      router.push(`/checkout/success?orderId=${orderId}`);
+      // Étape 4: Rediriger vers la page de succès avec l'ID de la commande
+      router.push(`/checkout/success?orderId=${order.id}`);
     } catch (error: any) {
       console.error('Failed to place order:', error);
       const errorMessage = error?.message || error?.data?.message || 'Erreur lors de la création de la commande';

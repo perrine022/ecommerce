@@ -60,33 +60,66 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+const CART_STORAGE_KEY = 'tradfood_cart';
+
+// Fonction pour sauvegarder le panier dans localStorage
+const saveCartToStorage = (items: CartItem[]) => {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    } catch (error) {
+      console.error('Failed to save cart to localStorage:', error);
+    }
+  }
+};
+
+// Fonction pour charger le panier depuis localStorage
+const loadCartFromStorage = (): CartItem[] => {
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem(CART_STORAGE_KEY);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (error) {
+      console.error('Failed to load cart from localStorage:', error);
+    }
+  }
+  return [];
+};
+
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Charger le panier depuis le backend si l'utilisateur est connecté
+  // Charger le panier au démarrage
   useEffect(() => {
-    const checkAuthAndLoadCart = () => {
+    const checkAuthAndLoadCart = async () => {
       const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
       if (token) {
-        loadCart();
+        // Utilisateur connecté : charger depuis le backend
+        await loadCart();
       } else {
-        setItems([]);
+        // Utilisateur non connecté : charger depuis localStorage
+        const localCart = loadCartFromStorage();
+        setItems(localCart);
       }
     };
 
     checkAuthAndLoadCart();
 
     // Écouter les changements de localStorage pour le token
-    const handleStorageChange = (e: StorageEvent) => {
+    const handleStorageChange = async (e: StorageEvent) => {
       if (e.key === 'auth_token') {
-        checkAuthAndLoadCart();
+        await checkAuthAndLoadCart();
       }
     };
 
     // Écouter l'événement de déconnexion personnalisé
     const handleLogout = () => {
+      // Vider le panier et localStorage
       setItems([]);
+      saveCartToStorage([]);
     };
 
     window.addEventListener('storage', handleStorageChange);
@@ -114,9 +147,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
         };
       });
       setItems(cartItems);
+      // Sauvegarder aussi dans localStorage pour la persistance
+      saveCartToStorage(cartItems);
     } catch (error) {
       console.error('Failed to load cart:', error);
-      setItems([]);
+      // En cas d'erreur, essayer de charger depuis localStorage
+      const localCart = loadCartFromStorage();
+      setItems(localCart);
     } finally {
       setLoading(false);
     }
@@ -133,28 +170,36 @@ export function CartProvider({ children }: { children: ReactNode }) {
         // Fallback local en cas d'erreur
         setItems((prevItems) => {
           const existingItem = prevItems.find((item) => item.product.id === product.id);
+          let updatedItems: CartItem[];
           if (existingItem) {
-            return prevItems.map((item) =>
+            updatedItems = prevItems.map((item) =>
               item.product.id === product.id
                 ? { ...item, quantity: item.quantity + quantity }
                 : item
             );
+          } else {
+            updatedItems = [...prevItems, { product, quantity }];
           }
-          return [...prevItems, { product, quantity }];
+          saveCartToStorage(updatedItems);
+          return updatedItems;
         });
       }
     } else {
-      // Panier local si non connecté
+      // Panier local si non connecté - sauvegarder dans localStorage
       setItems((prevItems) => {
         const existingItem = prevItems.find((item) => item.product.id === product.id);
+        let updatedItems: CartItem[];
         if (existingItem) {
-          return prevItems.map((item) =>
+          updatedItems = prevItems.map((item) =>
             item.product.id === product.id
               ? { ...item, quantity: item.quantity + quantity }
               : item
           );
+        } else {
+          updatedItems = [...prevItems, { product, quantity }];
         }
-        return [...prevItems, { product, quantity }];
+        saveCartToStorage(updatedItems);
+        return updatedItems;
       });
     }
   };
@@ -168,10 +213,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error('Failed to remove item from cart:', error);
         // Fallback local
-        setItems((prevItems) => prevItems.filter((item) => item.product.id !== productId));
+        setItems((prevItems) => {
+          const updatedItems = prevItems.filter((item) => item.product.id !== productId);
+          saveCartToStorage(updatedItems);
+          return updatedItems;
+        });
       }
     } else {
-      setItems((prevItems) => prevItems.filter((item) => item.product.id !== productId));
+      setItems((prevItems) => {
+        const updatedItems = prevItems.filter((item) => item.product.id !== productId);
+        saveCartToStorage(updatedItems);
+        return updatedItems;
+      });
     }
   };
 
@@ -189,18 +242,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error('Failed to update quantity:', error);
         // Fallback local
-        setItems((prevItems) =>
-          prevItems.map((item) =>
+        setItems((prevItems) => {
+          const updatedItems = prevItems.map((item) =>
             item.product.id === productId ? { ...item, quantity } : item
-          )
-        );
+          );
+          saveCartToStorage(updatedItems);
+          return updatedItems;
+        });
       }
     } else {
-      setItems((prevItems) =>
-        prevItems.map((item) =>
+      setItems((prevItems) => {
+        const updatedItems = prevItems.map((item) =>
           item.product.id === productId ? { ...item, quantity } : item
-        )
-      );
+        );
+        saveCartToStorage(updatedItems);
+        return updatedItems;
+      });
     }
   };
 
@@ -210,12 +267,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
       try {
         await cartApi.clearCart();
         setItems([]);
+        saveCartToStorage([]);
       } catch (error) {
         console.error('Failed to clear cart:', error);
         setItems([]);
+        saveCartToStorage([]);
       }
     } else {
       setItems([]);
+      saveCartToStorage([]);
     }
   };
 
