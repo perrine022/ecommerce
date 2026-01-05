@@ -86,10 +86,10 @@ export default function AccountPage() {
       let addressesArray: CompanyAddress[] = [];
       if (Array.isArray(addressesList)) {
         addressesArray = addressesList;
-      } else if (addressesList?.data && Array.isArray(addressesList.data)) {
-        addressesArray = addressesList.data;
-      } else if (addressesList?.addresses && Array.isArray(addressesList.addresses)) {
-        addressesArray = addressesList.addresses;
+      } else if ((addressesList as any)?.data && Array.isArray((addressesList as any).data)) {
+        addressesArray = (addressesList as any).data;
+      } else if ((addressesList as any)?.addresses && Array.isArray((addressesList as any).addresses)) {
+        addressesArray = (addressesList as any).addresses;
       }
       
       console.log('🔍 [COMPTE] Final addresses array:', addressesArray);
@@ -813,7 +813,9 @@ function AddressForm({ address, allAddresses, onClose, onSuccess, user }: { addr
     is_invoicing_address: address?.is_invoicing_address || false,
     is_delivery_address: address?.is_delivery_address || false,
     is_default_address: address?.is_default_address || false,
-    geocode: address?.geocode,
+    geocode: address?.geocode && address.geocode.lat !== null && address.geocode.lng !== null 
+      ? { lat: address.geocode.lat, lng: address.geocode.lng }
+      : undefined,
   });
   const [saving, setSaving] = useState(false);
 
@@ -1215,8 +1217,12 @@ function CommercialDashboard() {
   const loadClientAddresses = async (clientId: string) => {
     setLoadingAddresses(true);
     try {
-      const response = await addressApi.getUserAddresses(clientId);
-      setClientAddresses(response.data || []);
+      const addressesList = await addressApi.getUserAddresses(clientId);
+      // Gérer différents formats de réponse
+      const addressesArray = Array.isArray(addressesList) 
+        ? addressesList 
+        : (addressesList as any)?.data || [];
+      setClientAddresses(addressesArray);
     } catch (error) {
       console.error('Failed to load client addresses:', error);
       setClientAddresses([]);
@@ -1363,7 +1369,7 @@ function CommercialDashboard() {
           ) : (
             <div className="space-y-4">
               {clientOrders.map((order) => {
-                const orderDate = order.date || order.orderDate || order.createdAt || order.updatedAt;
+                const orderDate = (order as any).date || order.orderDate || order.createdAt || order.updatedAt;
                 const orderNumber = order.number || order.orderNumber || order.id.substring(0, 8);
                 const orderTotal = order.totalAmount || order.total || 0;
                 const orderStatus = order.status || 'UNKNOWN';
@@ -1448,10 +1454,10 @@ function CommercialDashboard() {
                         )}
                         
                         {/* Lien PDF si disponible */}
-                        {order.pdfLink && (
+                        {(order as any).pdfLink && (
                           <div className="mt-3">
                             <a
-                              href={order.pdfLink}
+                              href={(order as any).pdfLink}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-sm font-medium hover:opacity-80 transition-opacity inline-flex items-center gap-1"
@@ -1466,9 +1472,9 @@ function CommercialDashboard() {
                         <p className="font-bold text-xl mb-2" style={{ color: '#A0A12F' }}>
                           {orderTotal.toFixed(2)} €
                         </p>
-                        {order.currency && order.currency !== 'eur' && (
+                        {(order as any).currency && (order as any).currency !== 'eur' && (
                           <p className="text-xs" style={{ color: '#172867', opacity: 0.6 }}>
-                            {order.currency.toUpperCase()}
+                            {(order as any).currency.toUpperCase()}
                           </p>
                         )}
                       </div>

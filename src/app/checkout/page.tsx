@@ -115,11 +115,15 @@ export default function CheckoutPage() {
       }
       
       // Utiliser le nouvel endpoint basé sur userId
-      const response = await addressApi.getUserAddresses(currentUser.id);
-      setAddresses(response.data || []);
+      const addressesList = await addressApi.getUserAddresses();
+      // Gérer différents formats de réponse
+      const addressesArray = Array.isArray(addressesList) 
+        ? addressesList 
+        : (addressesList as any)?.data || [];
+      setAddresses(addressesArray);
       // Sélectionner la première adresse de facturation et de livraison par défaut
-      const firstBilling = response.data?.find(a => a.is_invoicing_address);
-      const firstShipping = response.data?.find(a => a.is_delivery_address);
+      const firstBilling = addressesArray.find((a: CompanyAddress) => a.is_invoicing_address);
+      const firstShipping = addressesArray.find((a: CompanyAddress) => a.is_delivery_address);
       if (firstBilling) setBillingAddressId(firstBilling.id);
       if (firstShipping) setShippingAddressId(firstShipping.id);
     } catch (error) {
@@ -139,11 +143,15 @@ export default function CheckoutPage() {
 
   const loadClientAddresses = async (clientId: string) => {
     try {
-      const response = await addressApi.getUserAddresses(clientId);
-      setClientAddresses(response.data || []);
+      const addressesList = await addressApi.getUserAddresses(clientId);
+      // Gérer différents formats de réponse
+      const addressesArray = Array.isArray(addressesList) 
+        ? addressesList 
+        : (addressesList as any)?.data || [];
+      setClientAddresses(addressesArray);
       // Sélectionner la première adresse de facturation et de livraison par défaut
-      const firstBilling = response.data?.find(a => a.is_invoicing_address);
-      const firstShipping = response.data?.find(a => a.is_delivery_address);
+      const firstBilling = addressesArray.find((a: CompanyAddress) => a.is_invoicing_address);
+      const firstShipping = addressesArray.find((a: CompanyAddress) => a.is_delivery_address);
       if (firstBilling) setBillingAddressId(firstBilling.id);
       if (firstShipping) setShippingAddressId(firstShipping.id);
     } catch (error) {
@@ -278,7 +286,7 @@ export default function CheckoutPage() {
       console.log('📝 [CHECKOUT] Calling API with userId:', userId);
       
       // Utiliser le nouvel endpoint basé sur userId
-      const newAddress = await addressApi.createUserAddress(userId, companyAddressData);
+      const newAddress = await addressApi.createUserAddress(companyAddressData);
       console.log('✅ [CHECKOUT] Address created successfully:', newAddress);
       
       await loadAddresses(); // Recharger les adresses

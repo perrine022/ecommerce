@@ -615,10 +615,12 @@ export const addressApi = {
     }),
 
   // ===== NOUVEAUX ENDPOINTS BASÉS SUR USER ID =====
-  // Récupérer les adresses de l'utilisateur connecté
-  // Endpoint: GET /api/v1/users/addresses
-  getUserAddresses: () =>
-    request<any[]>("/api/v1/users/addresses"),
+  // Récupérer les adresses de l'utilisateur connecté ou d'un utilisateur spécifique
+  // Endpoint: GET /api/v1/users/addresses ou GET /api/v1/users/{userId}/addresses
+  getUserAddresses: (userId?: string) =>
+    userId 
+      ? request<any[]>(`/api/v1/users/${userId}/addresses`)
+      : request<any[]>("/api/v1/users/addresses"),
 
   // Créer une adresse pour l'utilisateur connecté
   // Endpoint: POST /api/v1/users/addresses

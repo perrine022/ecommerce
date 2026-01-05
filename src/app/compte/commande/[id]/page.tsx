@@ -172,17 +172,17 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                     </p>
                   )}
                   {order.shippingAddress.company && <p>{order.shippingAddress.company}</p>}
-                  {order.shippingAddress.addressLine1 && <p>{order.shippingAddress.addressLine1}</p>}
-                  {order.shippingAddress.address_line_1 && <p>{order.shippingAddress.address_line_1}</p>}
-                  {order.shippingAddress.addressLine2 && <p>{order.shippingAddress.addressLine2}</p>}
-                  {order.shippingAddress.address_line_2 && <p>{order.shippingAddress.address_line_2}</p>}
-                  {(order.shippingAddress.postalCode || order.shippingAddress.postal_code) && (
+                  {(order.shippingAddress as any).addressLine1 && <p>{(order.shippingAddress as any).addressLine1}</p>}
+                  {(order.shippingAddress as any).address_line_1 && <p>{(order.shippingAddress as any).address_line_1}</p>}
+                  {(order.shippingAddress as any).addressLine2 && <p>{(order.shippingAddress as any).addressLine2}</p>}
+                  {(order.shippingAddress as any).address_line_2 && <p>{(order.shippingAddress as any).address_line_2}</p>}
+                  {((order.shippingAddress as any).postalCode || (order.shippingAddress as any).postal_code) && (
                     <p>
-                      {order.shippingAddress.postalCode || order.shippingAddress.postal_code} {order.shippingAddress.city || ''}
+                      {(order.shippingAddress as any).postalCode || (order.shippingAddress as any).postal_code} {(order.shippingAddress as any).city || ''}
                     </p>
                   )}
-                  {order.shippingAddress.country && <p>{order.shippingAddress.country}</p>}
-                  {order.shippingAddress.country_code && <p>{order.shippingAddress.country_code}</p>}
+                  {(order.shippingAddress as any).country && <p>{(order.shippingAddress as any).country}</p>}
+                  {(order.shippingAddress as any).country_code && <p>{(order.shippingAddress as any).country_code}</p>}
                   {order.shippingAddress.phone && <p>{order.shippingAddress.phone}</p>}
                 </div>
               </div>
@@ -202,17 +202,17 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                     </p>
                   )}
                   {order.billingAddress.company && <p>{order.billingAddress.company}</p>}
-                  {order.billingAddress.addressLine1 && <p>{order.billingAddress.addressLine1}</p>}
-                  {order.billingAddress.address_line_1 && <p>{order.billingAddress.address_line_1}</p>}
-                  {order.billingAddress.addressLine2 && <p>{order.billingAddress.addressLine2}</p>}
-                  {order.billingAddress.address_line_2 && <p>{order.billingAddress.address_line_2}</p>}
-                  {(order.billingAddress.postalCode || order.billingAddress.postal_code) && (
+                  {(order.billingAddress as any).addressLine1 && <p>{(order.billingAddress as any).addressLine1}</p>}
+                  {(order.billingAddress as any).address_line_1 && <p>{(order.billingAddress as any).address_line_1}</p>}
+                  {(order.billingAddress as any).addressLine2 && <p>{(order.billingAddress as any).addressLine2}</p>}
+                  {(order.billingAddress as any).address_line_2 && <p>{(order.billingAddress as any).address_line_2}</p>}
+                  {((order.billingAddress as any).postalCode || (order.billingAddress as any).postal_code) && (
                     <p>
-                      {order.billingAddress.postalCode || order.billingAddress.postal_code} {order.billingAddress.city || ''}
+                      {(order.billingAddress as any).postalCode || (order.billingAddress as any).postal_code} {(order.billingAddress as any).city || ''}
                     </p>
                   )}
-                  {order.billingAddress.country && <p>{order.billingAddress.country}</p>}
-                  {order.billingAddress.country_code && <p>{order.billingAddress.country_code}</p>}
+                  {(order.billingAddress as any).country && <p>{(order.billingAddress as any).country}</p>}
+                  {(order.billingAddress as any).country_code && <p>{(order.billingAddress as any).country_code}</p>}
                   {order.billingAddress.phone && <p>{order.billingAddress.phone}</p>}
                 </div>
               </div>
