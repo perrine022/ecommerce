@@ -35,7 +35,12 @@ export default function AccountPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
+    // Attendre que l'authentification soit chargée avant de rediriger
+    if (authLoading) {
+      return;
+    }
+    
+    if (!isAuthenticated) {
       router.push('/connexion');
     }
   }, [isAuthenticated, authLoading, router]);
@@ -558,6 +563,25 @@ function ProfileTab({ user }: { user: any }) {
 }
 
 function OrdersTab({ orders, loading }: { orders: Order[]; loading: boolean }) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const sortedOrders = [...orders].sort((a, b) => {
+    const dateA = new Date(a.orderDate || a.createdAt || a.updatedAt || 0).getTime();
+    const dateB = new Date(b.orderDate || b.createdAt || b.updatedAt || 0).getTime();
+    return dateB - dateA; // Ordre décroissant (plus récent en premier)
+  });
+
+  const totalPages = Math.ceil(sortedOrders.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedOrders = sortedOrders.slice(startIndex, endIndex);
+
+  // Réinitialiser à la page 1 si on change de nombre de commandes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [orders.length]);
+
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       pending: '#F59E0B',
@@ -610,7 +634,8 @@ function OrdersTab({ orders, loading }: { orders: Order[]; loading: boolean }) {
           </p>
         </div>
       ) : (
-        orders.map((order) => {
+        <>
+          {paginatedOrders.map((order) => {
           // Calculer le total si non disponible
           const orderTotal = order.total ?? order.totalAmount ?? 
             (order.items?.reduce((sum, item) => sum + (item.totalPrice || item.unitPrice * item.quantity), 0) || 0);
@@ -624,7 +649,13 @@ function OrdersTab({ orders, loading }: { orders: Order[]; loading: boolean }) {
                     Commande #{orderNumber}
                   </p>
                 <p className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
-                  {new Date(order.orderDate || order.createdAt || order.updatedAt).toLocaleDateString('fr-FR')}
+                  {new Date(order.orderDate || order.createdAt || order.updatedAt).toLocaleDateString('fr-FR', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
                 </p>
                 </div>
                 <div className="text-right">
@@ -639,16 +670,13 @@ function OrdersTab({ orders, loading }: { orders: Order[]; loading: boolean }) {
                   </span>
                 </div>
               </div>
-              <div className="mb-4">
-                <p className="text-sm mb-2" style={{ color: '#172867', opacity: 0.7 }}>
-                  {order.items?.length || 0} article{(order.items?.length || 0) > 1 ? 's' : ''}
-                </p>
-                {order.trackingNumber && (
+              {order.trackingNumber && (
+                <div className="mb-4">
                   <p className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
                     Suivi: {order.trackingNumber}
                   </p>
-                )}
-              </div>
+                </div>
+              )}
               <a
                 href={`/compte/commande/${order.id}`}
                 className="text-sm font-medium hover:opacity-80 transition-opacity"
@@ -658,7 +686,37 @@ function OrdersTab({ orders, loading }: { orders: Order[]; loading: boolean }) {
               </a>
             </div>
           );
-        })
+        })}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-6">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ 
+                  backgroundColor: currentPage === 1 ? '#e5e7eb' : '#A0A12F',
+                  color: currentPage === 1 ? '#6b7280' : 'white'
+                }}
+              >
+                Précédent
+              </button>
+              <span className="px-4 py-2 text-sm" style={{ color: '#172867' }}>
+                Page {currentPage} sur {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ 
+                  backgroundColor: currentPage === totalPages ? '#e5e7eb' : '#A0A12F',
+                  color: currentPage === totalPages ? '#6b7280' : 'white'
+                }}
+              >
+                Suivant
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -1154,6 +1212,8 @@ function CommercialDashboard() {
   const [loading, setLoading] = useState(false);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
+  const [currentOrdersPage, setCurrentOrdersPage] = useState(1);
+  const ordersPerPage = 10;
   const router = useRouter();
 
   useEffect(() => {
@@ -1206,6 +1266,7 @@ function CommercialDashboard() {
       // Utiliser le nouvel endpoint GET /api/v1/orders/user/{userId}
       const orders = await orderApi.getUserOrders(clientId);
       setClientOrders(Array.isArray(orders) ? orders : []);
+      setCurrentOrdersPage(1); // Réinitialiser à la page 1 lors du chargement
     } catch (error) {
       console.error('Failed to load client orders:', error);
       setClientOrders([]);
@@ -1213,6 +1274,17 @@ function CommercialDashboard() {
       setLoadingOrders(false);
     }
   };
+
+  const sortedClientOrders = [...clientOrders].sort((a, b) => {
+    const dateA = new Date((a as any).date || a.orderDate || a.createdAt || a.updatedAt || 0).getTime();
+    const dateB = new Date((b as any).date || b.orderDate || b.createdAt || b.updatedAt || 0).getTime();
+    return dateB - dateA; // Ordre décroissant (plus récent en premier)
+  });
+
+  const totalOrdersPages = Math.ceil(sortedClientOrders.length / ordersPerPage);
+  const ordersStartIndex = (currentOrdersPage - 1) * ordersPerPage;
+  const ordersEndIndex = ordersStartIndex + ordersPerPage;
+  const paginatedClientOrders = sortedClientOrders.slice(ordersStartIndex, ordersEndIndex);
 
   const loadClientAddresses = async (clientId: string) => {
     setLoadingAddresses(true);
@@ -1367,8 +1439,9 @@ function CommercialDashboard() {
               <p style={{ color: '#172867', opacity: 0.6 }}>Aucune commande pour ce client</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {clientOrders.map((order) => {
+            <>
+              <div className="space-y-4">
+                {paginatedClientOrders.map((order) => {
                 const orderDate = (order as any).date || order.orderDate || order.createdAt || order.updatedAt;
                 const orderNumber = order.number || order.orderNumber || order.id.substring(0, 8);
                 const orderTotal = order.totalAmount || order.total || 0;
@@ -1418,6 +1491,8 @@ function CommercialDashboard() {
                             day: 'numeric',
                             month: 'long',
                             year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
                           }) : 'Date non disponible'}
                         </p>
                         
@@ -1482,7 +1557,37 @@ function CommercialDashboard() {
                   </div>
                 );
               })}
-            </div>
+              </div>
+              {totalOrdersPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-6">
+                  <button
+                    onClick={() => setCurrentOrdersPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentOrdersPage === 1}
+                    className="px-4 py-2 rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ 
+                      backgroundColor: currentOrdersPage === 1 ? '#e5e7eb' : '#A0A12F',
+                      color: currentOrdersPage === 1 ? '#6b7280' : 'white'
+                    }}
+                  >
+                    Précédent
+                  </button>
+                  <span className="px-4 py-2 text-sm" style={{ color: '#172867' }}>
+                    Page {currentOrdersPage} sur {totalOrdersPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentOrdersPage(prev => Math.min(totalOrdersPages, prev + 1))}
+                    disabled={currentOrdersPage === totalOrdersPages}
+                    className="px-4 py-2 rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ 
+                      backgroundColor: currentOrdersPage === totalOrdersPages ? '#e5e7eb' : '#A0A12F',
+                      color: currentOrdersPage === totalOrdersPages ? '#6b7280' : 'white'
+                    }}
+                  >
+                    Suivant
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

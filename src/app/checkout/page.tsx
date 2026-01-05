@@ -24,7 +24,7 @@ import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, getTotal } = useCart();
-  const { isAuthenticated, user, refreshUser, updateUser } = useAuth();
+  const { isAuthenticated, user, refreshUser, updateUser, loading: authLoading } = useAuth();
   const [step, setStep] = useState(1); // 1: Adresses, 2: Livraison, 3: Récapitulatif, 4: Paiement
   const [addresses, setAddresses] = useState<CompanyAddress[]>([]);
   const [billingAddressId, setBillingAddressId] = useState<string>('');
@@ -72,6 +72,11 @@ export default function CheckoutPage() {
   const isCommercial = userRoles.includes('ROLE_COMMERCIAL') || userRoles.includes('ROLE_ADMIN');
 
   useEffect(() => {
+    // Attendre que l'authentification soit chargée avant de faire des redirections
+    if (authLoading) {
+      return;
+    }
+
     if (!isAuthenticated) {
       router.push('/connexion?redirect=/checkout');
       return;
@@ -93,13 +98,73 @@ export default function CheckoutPage() {
     } else {
       loadAddresses();
     }
-  }, [isAuthenticated, items.length, router, user, isCommercial]);
+  }, [isAuthenticated, items.length, router, user, isCommercial, authLoading]);
 
   useEffect(() => {
     if (isCommercial && selectedClientId) {
       loadClientAddresses(selectedClientId);
     }
   }, [selectedClientId, isCommercial]);
+
+  // Fonction pour mettre à jour l'utilisation d'une adresse (facturation/livraison)
+  const updateAddressUsage = async (addressId: string | number, isBilling: boolean, isDelivery: boolean, currentBillingId?: string, currentShippingId?: string) => {
+    try {
+      const address = addresses.find(a => a.id === addressId);
+      if (!address) return;
+
+      const updateData: CreateCompanyAddressData = {
+        name: address.name,
+        address_line_1: address.address_line_1,
+        address_line_2: address.address_line_2 || "",
+        address_line_3: address.address_line_3 || "",
+        address_line_4: address.address_line_4 || "",
+        postal_code: address.postal_code,
+        city: address.city,
+        country_code: address.country_code,
+        is_invoicing_address: isBilling,
+        is_delivery_address: isDelivery,
+        is_default_address: address.is_default_address || false,
+      };
+
+      await addressApi.updateUserAddress(addressId, updateData);
+      // Recharger les adresses pour avoir les données à jour
+      const addressesList = await addressApi.getUserAddresses();
+      const addressesArray = Array.isArray(addressesList) 
+        ? addressesList 
+        : (addressesList as any)?.data || [];
+      setAddresses(addressesArray);
+      
+      // Mettre à jour les sélections si nécessaire
+      if (isBilling) {
+        setBillingAddressId(String(addressId));
+      } else if (currentBillingId === String(addressId)) {
+        // Si on décoche et que c'était l'adresse sélectionnée, trouver une autre adresse
+        const otherBilling = addressesArray.find((a: CompanyAddress) => a.id !== addressId && a.is_invoicing_address);
+        if (otherBilling) {
+          setBillingAddressId(String(otherBilling.id));
+        } else {
+          setBillingAddressId('');
+        }
+      }
+      
+      if (isDelivery) {
+        setShippingAddressId(String(addressId));
+        await handleShippingAddressChange(String(addressId));
+      } else if (currentShippingId === String(addressId)) {
+        // Si on décoche et que c'était l'adresse sélectionnée, trouver une autre adresse
+        const otherShipping = addressesArray.find((a: CompanyAddress) => a.id !== addressId && a.is_delivery_address);
+        if (otherShipping) {
+          setShippingAddressId(String(otherShipping.id));
+          await handleShippingAddressChange(String(otherShipping.id));
+        } else {
+          setShippingAddressId('');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to update address usage:', error);
+      alert('Erreur lors de la mise à jour de l\'adresse');
+    }
+  };
 
   const loadAddresses = async () => {
     try {
@@ -123,16 +188,24 @@ export default function CheckoutPage() {
         ? addressesList 
         : (addressesList as any)?.data || [];
       setAddresses(addressesArray);
-      // Sélectionner l'adresse par défaut en priorité, sinon la première adresse de facturation/livraison
+      // Sélectionner l'adresse par défaut en priorité pour facturation et livraison
       const defaultAddress = addressesArray.find((a: CompanyAddress) => a.is_default_address);
-      const firstBilling = defaultAddress?.is_invoicing_address 
-        ? defaultAddress 
-        : addressesArray.find((a: CompanyAddress) => a.is_invoicing_address);
-      const firstShipping = defaultAddress?.is_delivery_address 
-        ? defaultAddress 
-        : addressesArray.find((a: CompanyAddress) => a.is_delivery_address);
-      if (firstBilling) setBillingAddressId(String(firstBilling.id));
-      if (firstShipping) setShippingAddressId(String(firstShipping.id));
+      if (defaultAddress) {
+        // Si l'adresse par défaut existe, l'utiliser pour facturation et livraison
+        setBillingAddressId(String(defaultAddress.id));
+        setShippingAddressId(String(defaultAddress.id));
+        // Si elle n'est pas encore marquée comme facturation/livraison, la mettre à jour
+        if (!defaultAddress.is_invoicing_address || !defaultAddress.is_delivery_address) {
+          await updateAddressUsage(defaultAddress.id, true, true, billingAddressId, shippingAddressId);
+        }
+      } else {
+        // Sinon, prendre la première adresse disponible
+        const firstAddress = addressesArray[0];
+        if (firstAddress) {
+          setBillingAddressId(String(firstAddress.id));
+          setShippingAddressId(String(firstAddress.id));
+        }
+      }
     } catch (error) {
       console.error('Failed to load addresses:', error);
     }
@@ -148,6 +221,67 @@ export default function CheckoutPage() {
     }
   };
 
+  // Fonction pour mettre à jour l'utilisation d'une adresse d'un client (pour commerciaux)
+  const updateClientAddressUsage = async (clientId: string, addressId: string | number, isBilling: boolean, isDelivery: boolean, currentBillingId?: string, currentShippingId?: string) => {
+    try {
+      const address = clientAddresses.find(a => a.id === addressId);
+      if (!address) return;
+
+      const updateData: CreateCompanyAddressData = {
+        name: address.name,
+        address_line_1: address.address_line_1,
+        address_line_2: address.address_line_2 || "",
+        address_line_3: address.address_line_3 || "",
+        address_line_4: address.address_line_4 || "",
+        postal_code: address.postal_code,
+        city: address.city,
+        country_code: address.country_code,
+        is_invoicing_address: isBilling,
+        is_delivery_address: isDelivery,
+        is_default_address: address.is_default_address || false,
+      };
+
+      // Utiliser l'endpoint avec le clientId pour mettre à jour l'adresse du client
+      await addressApi.updateUserAddress(addressId, updateData, clientId);
+      // Recharger les adresses du client pour avoir les données à jour
+      const addressesList = await addressApi.getUserAddresses(clientId);
+      const addressesArray = Array.isArray(addressesList) 
+        ? addressesList 
+        : (addressesList as any)?.data || [];
+      setClientAddresses(addressesArray);
+      
+      // Mettre à jour les sélections si nécessaire
+      if (isBilling) {
+        setBillingAddressId(String(addressId));
+      } else if (currentBillingId === String(addressId)) {
+        // Si on décoche et que c'était l'adresse sélectionnée, trouver une autre adresse
+        const otherBilling = addressesArray.find((a: CompanyAddress) => a.id !== addressId && a.is_invoicing_address);
+        if (otherBilling) {
+          setBillingAddressId(String(otherBilling.id));
+        } else {
+          setBillingAddressId('');
+        }
+      }
+      
+      if (isDelivery) {
+        setShippingAddressId(String(addressId));
+        await handleShippingAddressChange(String(addressId));
+      } else if (currentShippingId === String(addressId)) {
+        // Si on décoche et que c'était l'adresse sélectionnée, trouver une autre adresse
+        const otherShipping = addressesArray.find((a: CompanyAddress) => a.id !== addressId && a.is_delivery_address);
+        if (otherShipping) {
+          setShippingAddressId(String(otherShipping.id));
+          await handleShippingAddressChange(String(otherShipping.id));
+        } else {
+          setShippingAddressId('');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to update client address usage:', error);
+      alert('Erreur lors de la mise à jour de l\'adresse du client');
+    }
+  };
+
   const loadClientAddresses = async (clientId: string) => {
     try {
       const addressesList = await addressApi.getUserAddresses(clientId);
@@ -156,11 +290,49 @@ export default function CheckoutPage() {
         ? addressesList 
         : (addressesList as any)?.data || [];
       setClientAddresses(addressesArray);
-      // Sélectionner la première adresse de facturation et de livraison par défaut
-      const firstBilling = addressesArray.find((a: CompanyAddress) => a.is_invoicing_address);
-      const firstShipping = addressesArray.find((a: CompanyAddress) => a.is_delivery_address);
-      if (firstBilling) setBillingAddressId(firstBilling.id);
-      if (firstShipping) setShippingAddressId(firstShipping.id);
+      
+      // Trouver les adresses de facturation et de livraison existantes
+      const billingAddress = addressesArray.find((a: CompanyAddress) => a.is_invoicing_address);
+      const deliveryAddress = addressesArray.find((a: CompanyAddress) => a.is_delivery_address);
+      
+      // Sélectionner l'adresse par défaut en priorité pour facturation et livraison
+      const defaultAddress = addressesArray.find((a: CompanyAddress) => a.is_default_address);
+      
+      if (defaultAddress) {
+        // Si l'adresse par défaut existe, l'utiliser pour facturation et livraison
+        setBillingAddressId(String(defaultAddress.id));
+        setShippingAddressId(String(defaultAddress.id));
+        // Si elle n'est pas encore marquée comme facturation/livraison, la mettre à jour
+        if (!defaultAddress.is_invoicing_address || !defaultAddress.is_delivery_address) {
+          await updateClientAddressUsage(clientId, defaultAddress.id, true, true, billingAddressId, shippingAddressId);
+        }
+      } else {
+        // Sinon, utiliser les adresses existantes ou la première disponible
+        if (billingAddress) {
+          setBillingAddressId(String(billingAddress.id));
+        } else {
+          const firstAddress = addressesArray[0];
+          if (firstAddress) {
+            setBillingAddressId(String(firstAddress.id));
+          }
+        }
+        
+        if (deliveryAddress) {
+          setShippingAddressId(String(deliveryAddress.id));
+        } else {
+          const firstAddress = addressesArray[0];
+          if (firstAddress) {
+            setShippingAddressId(String(firstAddress.id));
+          }
+        }
+      }
+      
+      console.log('✅ [CHECKOUT] Client addresses loaded:', {
+        addressesCount: addressesArray.length,
+        billingAddressId,
+        shippingAddressId,
+        defaultAddress: defaultAddress?.id
+      });
     } catch (error) {
       console.error('Failed to load client addresses:', error);
     }
@@ -191,8 +363,11 @@ export default function CheckoutPage() {
   const openAddressForm = (type: 'billing' | 'shipping') => {
     setAddressFormType(type);
     
+    // Pour les commerciaux, utiliser les adresses du client sélectionné
+    const addressesToUse = isCommercial && selectedClientId ? clientAddresses : addresses;
+    
     // Préremplir avec l'adresse par défaut si elle existe
-    const defaultAddress = addresses.find(a => a.is_default_address);
+    const defaultAddress = addressesToUse.find(a => a.is_default_address);
     if (defaultAddress) {
       // Extraire le prénom et nom depuis le nom de l'adresse
       const nameParts = defaultAddress.name.split(' - ');
@@ -329,25 +504,37 @@ export default function CheckoutPage() {
       // Créer l'adresse avec le userId récupéré
       console.log('📝 [CHECKOUT] Converting address data...');
       const companyAddressData = convertToCompanyAddress(addressFormData);
-      console.log('📝 [CHECKOUT] Address data:', companyAddressData);
-      console.log('📝 [CHECKOUT] Calling API with userId:', userId);
       
-      // Utiliser le nouvel endpoint basé sur userId
-      const newAddress = await addressApi.createUserAddress(companyAddressData);
+      // Pour les commerciaux, utiliser le clientId au lieu du userId du commercial
+      const targetUserId = isCommercial && selectedClientId ? selectedClientId : userId;
+      
+      console.log('📝 [CHECKOUT] Address data:', companyAddressData);
+      console.log('📝 [CHECKOUT] Is commercial:', isCommercial);
+      console.log('📝 [CHECKOUT] Selected client ID:', selectedClientId);
+      console.log('📝 [CHECKOUT] Target user ID (client or commercial):', targetUserId);
+      console.log('📝 [CHECKOUT] Commercial user ID:', userId);
+      
+      // Utiliser l'endpoint avec le clientId pour les commerciaux, sinon l'endpoint standard
+      const newAddress = await addressApi.createUserAddress(companyAddressData, targetUserId);
       console.log('✅ [CHECKOUT] Address created successfully:', newAddress);
       
-      await loadAddresses(); // Recharger les adresses
+      // Recharger les adresses selon le contexte
+      if (isCommercial && selectedClientId) {
+        await loadClientAddresses(selectedClientId);
+      } else {
+        await loadAddresses();
+      }
       
       // Sélectionner automatiquement la nouvelle adresse selon les options choisies
       const addressId = newAddress.address?.id || newAddress.id || newAddress.data?.id;
       console.log('📍 [CHECKOUT] New address ID:', addressId);
       
       if (isBillingAddress) {
-        setBillingAddressId(addressId);
+        setBillingAddressId(String(addressId));
       }
       if (isDeliveryAddress) {
-        setShippingAddressId(addressId);
-        await handleShippingAddressChange(addressId);
+        setShippingAddressId(String(addressId));
+        await handleShippingAddressChange(String(addressId));
       }
       
       setShowAddressForm(false);
@@ -375,10 +562,80 @@ export default function CheckoutPage() {
           alert('Veuillez sélectionner un client');
           return;
         }
+        // Vérifier qu'il y a des adresses pour le client
+        if (clientAddresses.length === 0) {
+          alert('Veuillez ajouter au moins une adresse pour ce client');
+          return;
+        }
       }
-      // À l'étape 1, si les adresses sont sélectionnées, créer la commande
+      
+      // Déterminer quelle liste d'adresses utiliser
+      const addressesToUse = isCommercial && selectedClientId ? clientAddresses : addresses;
+      
+      // Si les IDs sont définis, vérifier qu'ils correspondent à des adresses valides
+      let finalBillingId = billingAddressId;
+      let finalShippingId = shippingAddressId;
+      
       if (billingAddressId && shippingAddressId) {
-        handleCreateOrder();
+        // Vérifier que les adresses existent et ont les bonnes propriétés
+        const billingAddr = addressesToUse.find((a: CompanyAddress) => String(a.id) === billingAddressId);
+        const shippingAddr = addressesToUse.find((a: CompanyAddress) => String(a.id) === shippingAddressId);
+        
+        if (!billingAddr || !shippingAddr) {
+          // Les IDs ne correspondent à aucune adresse, trouver automatiquement
+          const autoBilling = addressesToUse.find((a: CompanyAddress) => a.is_invoicing_address);
+          const autoShipping = addressesToUse.find((a: CompanyAddress) => a.is_delivery_address);
+          
+          if (autoBilling) {
+            finalBillingId = String(autoBilling.id);
+            setBillingAddressId(finalBillingId);
+          }
+          if (autoShipping) {
+            finalShippingId = String(autoShipping.id);
+            setShippingAddressId(finalShippingId);
+          }
+        } else {
+          // Vérifier que les adresses ont les bonnes propriétés
+          if (!billingAddr.is_invoicing_address) {
+            const autoBilling = addressesToUse.find((a: CompanyAddress) => a.is_invoicing_address);
+            if (autoBilling) {
+              finalBillingId = String(autoBilling.id);
+              setBillingAddressId(finalBillingId);
+            }
+          }
+          if (!shippingAddr.is_delivery_address) {
+            const autoShipping = addressesToUse.find((a: CompanyAddress) => a.is_delivery_address);
+            if (autoShipping) {
+              finalShippingId = String(autoShipping.id);
+              setShippingAddressId(finalShippingId);
+            }
+          }
+        }
+      } else {
+        // Si les IDs ne sont pas définis, trouver automatiquement les adresses
+        const autoBilling = addressesToUse.find((a: CompanyAddress) => a.is_invoicing_address);
+        const autoShipping = addressesToUse.find((a: CompanyAddress) => a.is_delivery_address);
+        
+        if (autoBilling) {
+          finalBillingId = String(autoBilling.id);
+          setBillingAddressId(finalBillingId);
+        }
+        if (autoShipping) {
+          finalShippingId = String(autoShipping.id);
+          setShippingAddressId(finalShippingId);
+        }
+      }
+      
+      // Vérifier que les adresses finales sont valides
+      if (finalBillingId && finalShippingId) {
+        const billingAddr = addressesToUse.find((a: CompanyAddress) => String(a.id) === finalBillingId);
+        const shippingAddr = addressesToUse.find((a: CompanyAddress) => String(a.id) === finalShippingId);
+        
+        if (billingAddr && shippingAddr && billingAddr.is_invoicing_address && shippingAddr.is_delivery_address) {
+          handleCreateOrder();
+        } else {
+          alert('Veuillez sélectionner une adresse de facturation et une adresse de livraison');
+        }
       } else {
         alert('Veuillez sélectionner une adresse de facturation et une adresse de livraison');
       }
@@ -591,123 +848,104 @@ export default function CheckoutPage() {
                   <div className="space-y-6">
                     <div>
                       <label className="block text-sm font-medium mb-3" style={{ color: '#172867' }}>
-                        Adresse de facturation
+                        Adresses du client
                       </label>
-                      <div className="space-y-2">
-                        {(isCommercial ? clientAddresses : addresses)
-                          .filter(a => a.is_invoicing_address)
+                      <div className="space-y-3">
+                        {clientAddresses
                           .sort((a, b) => (b.is_default_address ? 1 : 0) - (a.is_default_address ? 1 : 0))
                           .map((address) => (
-                          <label
+                          <div
                             key={address.id}
-                            className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                              billingAddressId === address.id ? 'border-[#172867] bg-[#172867]/5' : 'border-gray-200 hover:border-gray-300'
+                            className={`p-4 border-2 rounded-lg transition-all ${
+                              (billingAddressId === String(address.id) || shippingAddressId === String(address.id)) 
+                                ? 'border-[#172867] bg-[#172867]/5' 
+                                : 'border-gray-200 hover:border-gray-300'
                             }`}
                           >
-                            <input
-                              type="radio"
-                              name="billing"
-                              value={address.id}
-                              checked={billingAddressId === address.id}
-                              onChange={(e) => setBillingAddressId(e.target.value)}
-                              className="mt-1"
-                              style={{ accentColor: '#172867' }}
-                            />
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <p className="font-medium" style={{ color: '#172867' }}>
-                                  {address.name}
+                            <div className="flex items-start gap-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <p className="font-medium" style={{ color: '#172867' }}>
+                                    {address.name}
+                                  </p>
+                                  {address.is_default_address && (
+                                    <span className="text-xs px-2 py-0.5 rounded font-medium" style={{ backgroundColor: '#A0A12F', color: 'white' }}>
+                                      Défaut
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-sm mb-3" style={{ color: '#172867', opacity: 0.7 }}>
+                                  {address.address_line_1}
+                                  {address.address_line_2 && <><br />{address.address_line_2}</>}
+                                  {address.address_line_3 && <><br />{address.address_line_3}</>}
+                                  {address.address_line_4 && <><br />{address.address_line_4}</>}
+                                  <br />
+                                  {address.postal_code} {address.city}
+                                  <br />
+                                  {address.country_code}
                                 </p>
-                                {address.is_default_address && (
-                                  <span className="text-xs px-2 py-0.5 rounded font-medium" style={{ backgroundColor: '#A0A12F', color: 'white' }}>
-                                    Défaut
-                                  </span>
-                                )}
+                                <div className="flex items-center gap-4 flex-wrap">
+                                  <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={address.is_invoicing_address}
+                                      onChange={async (e) => {
+                                        const isChecked = e.target.checked;
+                                        await updateClientAddressUsage(
+                                          selectedClientId,
+                                          address.id, 
+                                          isChecked, 
+                                          address.is_delivery_address,
+                                          billingAddressId,
+                                          shippingAddressId
+                                        );
+                                      }}
+                                      className="w-4 h-4"
+                                      style={{ accentColor: '#A0A12F' }}
+                                    />
+                                    <span className="text-sm" style={{ color: '#172867' }}>
+                                      Adresse de facturation
+                                    </span>
+                                  </label>
+                                  <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={address.is_delivery_address}
+                                      onChange={async (e) => {
+                                        const isChecked = e.target.checked;
+                                        await updateClientAddressUsage(
+                                          selectedClientId,
+                                          address.id, 
+                                          address.is_invoicing_address,
+                                          isChecked,
+                                          billingAddressId,
+                                          shippingAddressId
+                                        );
+                                      }}
+                                      className="w-4 h-4"
+                                      style={{ accentColor: '#A0A12F' }}
+                                    />
+                                    <span className="text-sm" style={{ color: '#172867' }}>
+                                      Adresse de livraison
+                                    </span>
+                                  </label>
+                                </div>
                               </div>
-                              <p className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
-                                {address.address_line_1}
-                                {address.address_line_2 && <><br />{address.address_line_2}</>}
-                                {address.address_line_3 && <><br />{address.address_line_3}</>}
-                                {address.address_line_4 && <><br />{address.address_line_4}</>}
-                                <br />
-                                {address.postal_code} {address.city}
-                                <br />
-                                {address.country_code}
-                              </p>
                             </div>
-                          </label>
+                          </div>
                         ))}
-                        {(isCommercial ? clientAddresses : addresses).filter(a => a.is_invoicing_address).length === 0 && (
-                          <p className="text-sm text-gray-500 italic">Aucune adresse de facturation</p>
+                        {clientAddresses.length === 0 && (
+                          <p className="text-sm text-gray-500 italic">Aucune adresse enregistrée pour ce client</p>
                         )}
                       </div>
-                      {!isCommercial && (
-                        <button
-                          onClick={() => openAddressForm('billing')}
-                          className="mt-3 inline-flex items-center gap-2 text-sm font-medium hover:opacity-80 transition-opacity px-4 py-2 rounded-lg border-2"
-                          style={{ color: '#A0A12F', borderColor: '#A0A12F' }}
-                        >
-                          <Plus className="w-4 h-4" />
-                          Ajouter une adresse de facturation
-                        </button>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium mb-3" style={{ color: '#172867' }}>
-                        Adresse de livraison
-                      </label>
-                      <div className="space-y-2">
-                        {(isCommercial ? clientAddresses : addresses)
-                          .filter(a => a.is_delivery_address)
-                          .sort((a, b) => (b.is_default_address ? 1 : 0) - (a.is_default_address ? 1 : 0))
-                          .map((address) => (
-                          <label
-                            key={address.id}
-                            className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                              shippingAddressId === address.id ? 'border-[#172867] bg-[#172867]/5' : 'border-gray-200 hover:border-gray-300'
-                            }`}
-                          >
-                            <input
-                              type="radio"
-                              name="shipping"
-                              value={address.id}
-                              checked={shippingAddressId === address.id}
-                              onChange={(e) => handleShippingAddressChange(e.target.value)}
-                              className="mt-1"
-                              style={{ accentColor: '#172867' }}
-                            />
-                            <div className="flex-1">
-                              <p className="font-medium" style={{ color: '#172867' }}>
-                                {address.name}
-                              </p>
-                              <p className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
-                                {address.address_line_1}
-                                {address.address_line_2 && <><br />{address.address_line_2}</>}
-                                {address.address_line_3 && <><br />{address.address_line_3}</>}
-                                {address.address_line_4 && <><br />{address.address_line_4}</>}
-                                <br />
-                                {address.postal_code} {address.city}
-                                <br />
-                                {address.country_code}
-                              </p>
-                            </div>
-                          </label>
-                        ))}
-                        {(isCommercial ? clientAddresses : addresses).filter(a => a.is_delivery_address).length === 0 && (
-                          <p className="text-sm text-gray-500 italic">Aucune adresse de livraison</p>
-                        )}
-                      </div>
-                      {!isCommercial && (
-                        <button
-                          onClick={() => openAddressForm('shipping')}
-                          className="mt-3 inline-flex items-center gap-2 text-sm font-medium hover:opacity-80 transition-opacity px-4 py-2 rounded-lg border-2"
-                          style={{ color: '#A0A12F', borderColor: '#A0A12F' }}
-                        >
-                          <Plus className="w-4 h-4" />
-                          Ajouter une adresse de livraison
-                        </button>
-                      )}
+                      <button
+                        onClick={() => openAddressForm('shipping')}
+                        className="mt-4 inline-flex items-center gap-2 text-sm font-medium hover:opacity-80 transition-opacity px-4 py-2 rounded-lg border-2"
+                        style={{ color: '#A0A12F', borderColor: '#A0A12F' }}
+                      >
+                        <Plus className="w-4 h-4" />
+                        Ajouter une nouvelle adresse pour ce client
+                      </button>
                     </div>
                   </div>
                         </div>
@@ -717,125 +955,101 @@ export default function CheckoutPage() {
                     <div className="space-y-6">
                       <div>
                         <label className="block text-sm font-medium mb-3" style={{ color: '#172867' }}>
-                          Adresse de facturation
+                          Vos adresses
                         </label>
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           {addresses
-                            .filter(a => a.is_invoicing_address)
                             .sort((a, b) => (b.is_default_address ? 1 : 0) - (a.is_default_address ? 1 : 0))
                             .map((address) => (
-                            <label
+                            <div
                               key={address.id}
-                              className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                                billingAddressId === address.id ? 'border-[#172867] bg-[#172867]/5' : 'border-gray-200 hover:border-gray-300'
+                              className={`p-4 border-2 rounded-lg transition-all ${
+                                (billingAddressId === String(address.id) || shippingAddressId === String(address.id)) 
+                                  ? 'border-[#172867] bg-[#172867]/5' 
+                                  : 'border-gray-200 hover:border-gray-300'
                               }`}
                             >
-                              <input
-                                type="radio"
-                                name="billing"
-                                value={address.id}
-                                checked={billingAddressId === address.id}
-                                onChange={(e) => setBillingAddressId(e.target.value)}
-                                className="mt-1"
-                                style={{ accentColor: '#172867' }}
-                              />
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <p className="font-medium" style={{ color: '#172867' }}>
-                                    {address.name}
+                              <div className="flex items-start gap-3">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <p className="font-medium" style={{ color: '#172867' }}>
+                                      {address.name}
+                                    </p>
+                                    {address.is_default_address && (
+                                      <span className="text-xs px-2 py-0.5 rounded font-medium" style={{ backgroundColor: '#A0A12F', color: 'white' }}>
+                                        Défaut
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-sm mb-3" style={{ color: '#172867', opacity: 0.7 }}>
+                                    {address.address_line_1}
+                                    {address.address_line_2 && <><br />{address.address_line_2}</>}
+                                    {address.address_line_3 && <><br />{address.address_line_3}</>}
+                                    {address.address_line_4 && <><br />{address.address_line_4}</>}
+                                    <br />
+                                    {address.postal_code} {address.city}
+                                    <br />
+                                    {address.country_code}
                                   </p>
-                                  {address.is_default_address && (
-                                    <span className="text-xs px-2 py-0.5 rounded font-medium" style={{ backgroundColor: '#A0A12F', color: 'white' }}>
-                                      Défaut
-                                    </span>
-                                  )}
+                                  <div className="flex items-center gap-4 flex-wrap">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={address.is_invoicing_address}
+                                        onChange={async (e) => {
+                                          const isChecked = e.target.checked;
+                                          await updateAddressUsage(
+                                            address.id, 
+                                            isChecked, 
+                                            address.is_delivery_address,
+                                            billingAddressId,
+                                            shippingAddressId
+                                          );
+                                        }}
+                                        className="w-4 h-4"
+                                        style={{ accentColor: '#A0A12F' }}
+                                      />
+                                      <span className="text-sm" style={{ color: '#172867' }}>
+                                        Adresse de facturation
+                                      </span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={address.is_delivery_address}
+                                        onChange={async (e) => {
+                                          const isChecked = e.target.checked;
+                                          await updateAddressUsage(
+                                            address.id, 
+                                            address.is_invoicing_address,
+                                            isChecked,
+                                            billingAddressId,
+                                            shippingAddressId
+                                          );
+                                        }}
+                                        className="w-4 h-4"
+                                        style={{ accentColor: '#A0A12F' }}
+                                      />
+                                      <span className="text-sm" style={{ color: '#172867' }}>
+                                        Adresse de livraison
+                                      </span>
+                                    </label>
+                                  </div>
                                 </div>
-                                <p className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
-                                  {address.address_line_1}
-                                  {address.address_line_2 && <><br />{address.address_line_2}</>}
-                                  {address.address_line_3 && <><br />{address.address_line_3}</>}
-                                  {address.address_line_4 && <><br />{address.address_line_4}</>}
-                                  <br />
-                                  {address.postal_code} {address.city}
-                                  <br />
-                                  {address.country_code}
-                                </p>
                               </div>
-                            </label>
+                            </div>
                           ))}
-                          {addresses.filter(a => a.is_invoicing_address).length === 0 && (
-                            <p className="text-sm text-gray-500 italic">Aucune adresse de facturation</p>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => openAddressForm('billing')}
-                          className="mt-3 inline-flex items-center gap-2 text-sm font-medium hover:opacity-80 transition-opacity px-4 py-2 rounded-lg border-2"
-                          style={{ color: '#A0A12F', borderColor: '#A0A12F' }}
-                        >
-                          <Plus className="w-4 h-4" />
-                          Ajouter une adresse de facturation
-                        </button>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-3" style={{ color: '#172867' }}>
-                          Adresse de livraison
-                        </label>
-                        <div className="space-y-2">
-                          {addresses
-                            .filter(a => a.is_delivery_address)
-                            .sort((a, b) => (b.is_default_address ? 1 : 0) - (a.is_default_address ? 1 : 0))
-                            .map((address) => (
-                            <label
-                              key={address.id}
-                              className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                                shippingAddressId === address.id ? 'border-[#172867] bg-[#172867]/5' : 'border-gray-200 hover:border-gray-300'
-                              }`}
-                            >
-                              <input
-                                type="radio"
-                                name="shipping"
-                                value={address.id}
-                                checked={shippingAddressId === address.id}
-                                onChange={(e) => handleShippingAddressChange(e.target.value)}
-                                className="mt-1"
-                                style={{ accentColor: '#172867' }}
-                              />
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <p className="font-medium" style={{ color: '#172867' }}>
-                                    {address.name}
-                                  </p>
-                                  {address.is_default_address && (
-                                    <span className="text-xs px-2 py-0.5 rounded font-medium" style={{ backgroundColor: '#A0A12F', color: 'white' }}>
-                                      Défaut
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
-                                  {address.address_line_1}
-                                  {address.address_line_2 && <><br />{address.address_line_2}</>}
-                                  {address.address_line_3 && <><br />{address.address_line_3}</>}
-                                  {address.address_line_4 && <><br />{address.address_line_4}</>}
-                                  <br />
-                                  {address.postal_code} {address.city}
-                                  <br />
-                                  {address.country_code}
-                                </p>
-                              </div>
-                            </label>
-                          ))}
-                          {addresses.filter(a => a.is_delivery_address).length === 0 && (
-                            <p className="text-sm text-gray-500 italic">Aucune adresse de livraison</p>
+                          {addresses.length === 0 && (
+                            <p className="text-sm text-gray-500 italic">Aucune adresse enregistrée</p>
                           )}
                         </div>
                         <button
                           onClick={() => openAddressForm('shipping')}
-                          className="mt-3 inline-flex items-center gap-2 text-sm font-medium hover:opacity-80 transition-opacity px-4 py-2 rounded-lg border-2"
+                          className="mt-4 inline-flex items-center gap-2 text-sm font-medium hover:opacity-80 transition-opacity px-4 py-2 rounded-lg border-2"
                           style={{ color: '#A0A12F', borderColor: '#A0A12F' }}
                         >
                           <Plus className="w-4 h-4" />
-                          Ajouter une adresse de livraison
+                          Ajouter une nouvelle adresse
                         </button>
                       </div>
                     </div>

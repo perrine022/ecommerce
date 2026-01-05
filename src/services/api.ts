@@ -5,7 +5,7 @@
  */
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+  process.env.NEXT_PUBLIC_API_URL || "https://ecommerce-back-kmqe.onrender.com";
 
 class ApiError extends Error {
   constructor(message: string, public status: number, public data?: any) {
@@ -622,8 +622,8 @@ export const addressApi = {
       ? request<any[]>(`/api/v1/users/${userId}/addresses`)
       : request<any[]>("/api/v1/users/addresses"),
 
-  // Créer une adresse pour l'utilisateur connecté
-  // Endpoint: POST /api/v1/users/addresses
+  // Créer une adresse pour l'utilisateur connecté ou pour un client (pour commerciaux)
+  // Endpoint: POST /api/v1/users/addresses ou POST /api/v1/users/{userId}/addresses
   createUserAddress: (data: {
     name: string;
     address_line_1: string;
@@ -635,8 +635,9 @@ export const addressApi = {
     country_code: string;
     is_invoicing_address?: boolean;
     is_delivery_address?: boolean;
+    is_default_address?: boolean;
     geocode?: { lat: number; lng: number };
-  }) => {
+  }, userId?: string) => {
     const payload = {
       name: data.name,
       address_line_1: data.address_line_1,
@@ -648,17 +649,23 @@ export const addressApi = {
       country_code: data.country_code,
       ...(data.is_invoicing_address !== undefined && { is_invoicing_address: data.is_invoicing_address }),
       ...(data.is_delivery_address !== undefined && { is_delivery_address: data.is_delivery_address }),
+      ...(data.is_default_address !== undefined && { is_default_address: data.is_default_address }),
       ...(data.geocode && { geocode: data.geocode }),
     };
     
-    return request<any>("/api/v1/users/addresses", {
+    // Pour les commerciaux créant une adresse pour un client, utiliser l'endpoint avec userId
+    const endpoint = userId 
+      ? `/api/v1/users/${userId}/addresses`
+      : "/api/v1/users/addresses";
+    
+    return request<any>(endpoint, {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
 
-  // Mettre à jour une adresse de l'utilisateur connecté
-  // Endpoint: PUT /api/v1/users/addresses/{addressId}
+  // Mettre à jour une adresse de l'utilisateur connecté ou d'un client (pour commerciaux)
+  // Endpoint: PUT /api/v1/users/addresses/{addressId} ou PUT /api/v1/users/{userId}/addresses/{addressId}
   updateUserAddress: (addressId: string | number, data: {
     name: string;
     address_line_1: string;
@@ -670,8 +677,9 @@ export const addressApi = {
     country_code: string;
     is_invoicing_address?: boolean;
     is_delivery_address?: boolean;
+    is_default_address?: boolean;
     geocode?: { lat: number; lng: number };
-  }) => {
+  }, userId?: string) => {
     const payload = {
       name: data.name,
       address_line_1: data.address_line_1,
@@ -683,10 +691,16 @@ export const addressApi = {
       country_code: data.country_code,
       ...(data.is_invoicing_address !== undefined && { is_invoicing_address: data.is_invoicing_address }),
       ...(data.is_delivery_address !== undefined && { is_delivery_address: data.is_delivery_address }),
+      ...(data.is_default_address !== undefined && { is_default_address: data.is_default_address }),
       ...(data.geocode && { geocode: data.geocode }),
     };
     
-    return request<any>(`/api/v1/users/addresses/${String(addressId)}`, {
+    // Pour les commerciaux mettant à jour l'adresse d'un client, utiliser l'endpoint avec userId
+    const endpoint = userId 
+      ? `/api/v1/users/${userId}/addresses/${String(addressId)}`
+      : `/api/v1/users/addresses/${String(addressId)}`;
+    
+    return request<any>(endpoint, {
       method: "PUT",
       body: JSON.stringify(payload),
     });

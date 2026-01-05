@@ -52,6 +52,8 @@ export interface Order {
   createdAt?: string; // Conservé pour compatibilité
   validationCode?: string; // Code de validation à 4 chiffres
   isValidated?: boolean; // Indique si la commande est validée
+  // Note: Le champ "user" n'est plus retourné par l'API pour éviter les erreurs 500
+  // Les informations utilisateur sont disponibles via /api/v1/users/me si nécessaire
 }
 
 export interface CreateOrderData {
