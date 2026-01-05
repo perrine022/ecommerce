@@ -63,6 +63,8 @@ export default function CheckoutPage() {
     phone: '',
     isDefault: false,
   });
+  const [isBillingAddress, setIsBillingAddress] = useState(false);
+  const [isDeliveryAddress, setIsDeliveryAddress] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
 
   // Vérifier si l'utilisateur est commercial
@@ -121,11 +123,16 @@ export default function CheckoutPage() {
         ? addressesList 
         : (addressesList as any)?.data || [];
       setAddresses(addressesArray);
-      // Sélectionner la première adresse de facturation et de livraison par défaut
-      const firstBilling = addressesArray.find((a: CompanyAddress) => a.is_invoicing_address);
-      const firstShipping = addressesArray.find((a: CompanyAddress) => a.is_delivery_address);
-      if (firstBilling) setBillingAddressId(firstBilling.id);
-      if (firstShipping) setShippingAddressId(firstShipping.id);
+      // Sélectionner l'adresse par défaut en priorité, sinon la première adresse de facturation/livraison
+      const defaultAddress = addressesArray.find((a: CompanyAddress) => a.is_default_address);
+      const firstBilling = defaultAddress?.is_invoicing_address 
+        ? defaultAddress 
+        : addressesArray.find((a: CompanyAddress) => a.is_invoicing_address);
+      const firstShipping = defaultAddress?.is_delivery_address 
+        ? defaultAddress 
+        : addressesArray.find((a: CompanyAddress) => a.is_delivery_address);
+      if (firstBilling) setBillingAddressId(String(firstBilling.id));
+      if (firstShipping) setShippingAddressId(String(firstShipping.id));
     } catch (error) {
       console.error('Failed to load addresses:', error);
     }
@@ -183,19 +190,51 @@ export default function CheckoutPage() {
 
   const openAddressForm = (type: 'billing' | 'shipping') => {
     setAddressFormType(type);
-    setAddressFormData({
-      type,
-      firstName: '',
-      lastName: '',
-      company: '',
-      addressLine1: '',
-      addressLine2: '',
-      city: '',
-      postalCode: '',
-      country: 'France',
-      phone: '',
-      isDefault: false,
-    });
+    
+    // Préremplir avec l'adresse par défaut si elle existe
+    const defaultAddress = addresses.find(a => a.is_default_address);
+    if (defaultAddress) {
+      // Extraire le prénom et nom depuis le nom de l'adresse
+      const nameParts = defaultAddress.name.split(' - ');
+      const fullName = nameParts[0].split(' ');
+      const firstName = fullName[0] || '';
+      const lastName = fullName.slice(1).join(' ') || '';
+      
+      setAddressFormData({
+        type,
+        firstName,
+        lastName,
+        company: nameParts[1] || '',
+        addressLine1: defaultAddress.address_line_1,
+        addressLine2: defaultAddress.address_line_2 || '',
+        city: defaultAddress.city,
+        postalCode: defaultAddress.postal_code,
+        country: defaultAddress.country || 'France',
+        phone: '',
+        isDefault: false,
+      });
+      
+      // Précocher selon le type demandé
+      setIsBillingAddress(type === 'billing');
+      setIsDeliveryAddress(type === 'shipping');
+    } else {
+      setAddressFormData({
+        type,
+        firstName: '',
+        lastName: '',
+        company: '',
+        addressLine1: '',
+        addressLine2: '',
+        city: '',
+        postalCode: '',
+        country: 'France',
+        phone: '',
+        isDefault: false,
+      });
+      // Précocher selon le type demandé
+      setIsBillingAddress(type === 'billing');
+      setIsDeliveryAddress(type === 'shipping');
+    }
     setShowAddressForm(true);
   };
 
@@ -208,7 +247,7 @@ export default function CheckoutPage() {
 
   // Convertir le format d'adresse du formulaire vers le format entreprise
   // Tous les champs texte optionnels sont initialisés à "" comme requis par Sellsy
-  const convertToCompanyAddress = (formData: CreateAddressData, type: 'billing' | 'shipping'): CreateCompanyAddressData => {
+  const convertToCompanyAddress = (formData: CreateAddressData): CreateCompanyAddressData => {
     return {
       name: `${formData.firstName} ${formData.lastName}${formData.company ? ` - ${formData.company}` : ''}`,
       address_line_1: formData.addressLine1,
@@ -218,8 +257,9 @@ export default function CheckoutPage() {
       postal_code: formData.postalCode,
       city: formData.city,
       country_code: formData.country === 'France' ? 'FR' : formData.country.substring(0, 2).toUpperCase(),
-      is_invoicing_address: type === 'billing',
-      is_delivery_address: type === 'shipping',
+      is_invoicing_address: isBillingAddress,
+      is_delivery_address: isDeliveryAddress,
+      is_default_address: formData.isDefault || false,
       // geocode est optionnel et n'est pas inclus si non fourni
     };
   };
@@ -279,9 +319,16 @@ export default function CheckoutPage() {
         }
       }
 
+      // Vérifier qu'au moins facturation OU livraison est sélectionné
+      if (!isBillingAddress && !isDeliveryAddress) {
+        alert('Veuillez sélectionner au moins une option : adresse de facturation ou adresse de livraison');
+        setSavingAddress(false);
+        return;
+      }
+
       // Créer l'adresse avec le userId récupéré
       console.log('📝 [CHECKOUT] Converting address data...');
-      const companyAddressData = convertToCompanyAddress(addressFormData, addressFormType);
+      const companyAddressData = convertToCompanyAddress(addressFormData);
       console.log('📝 [CHECKOUT] Address data:', companyAddressData);
       console.log('📝 [CHECKOUT] Calling API with userId:', userId);
       
@@ -291,13 +338,14 @@ export default function CheckoutPage() {
       
       await loadAddresses(); // Recharger les adresses
       
-      // Sélectionner automatiquement la nouvelle adresse
+      // Sélectionner automatiquement la nouvelle adresse selon les options choisies
       const addressId = newAddress.address?.id || newAddress.id || newAddress.data?.id;
       console.log('📍 [CHECKOUT] New address ID:', addressId);
       
-      if (addressFormType === 'billing') {
+      if (isBillingAddress) {
         setBillingAddressId(addressId);
-      } else {
+      }
+      if (isDeliveryAddress) {
         setShippingAddressId(addressId);
         await handleShippingAddressChange(addressId);
       }
@@ -546,7 +594,10 @@ export default function CheckoutPage() {
                         Adresse de facturation
                       </label>
                       <div className="space-y-2">
-                        {(isCommercial ? clientAddresses : addresses).filter(a => a.is_invoicing_address).map((address) => (
+                        {(isCommercial ? clientAddresses : addresses)
+                          .filter(a => a.is_invoicing_address)
+                          .sort((a, b) => (b.is_default_address ? 1 : 0) - (a.is_default_address ? 1 : 0))
+                          .map((address) => (
                           <label
                             key={address.id}
                             className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
@@ -563,9 +614,16 @@ export default function CheckoutPage() {
                               style={{ accentColor: '#172867' }}
                             />
                             <div className="flex-1">
-                              <p className="font-medium" style={{ color: '#172867' }}>
-                                {address.name}
-                              </p>
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="font-medium" style={{ color: '#172867' }}>
+                                  {address.name}
+                                </p>
+                                {address.is_default_address && (
+                                  <span className="text-xs px-2 py-0.5 rounded font-medium" style={{ backgroundColor: '#A0A12F', color: 'white' }}>
+                                    Défaut
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
                                 {address.address_line_1}
                                 {address.address_line_2 && <><br />{address.address_line_2}</>}
@@ -600,7 +658,10 @@ export default function CheckoutPage() {
                         Adresse de livraison
                       </label>
                       <div className="space-y-2">
-                        {(isCommercial ? clientAddresses : addresses).filter(a => a.is_delivery_address).map((address) => (
+                        {(isCommercial ? clientAddresses : addresses)
+                          .filter(a => a.is_delivery_address)
+                          .sort((a, b) => (b.is_default_address ? 1 : 0) - (a.is_default_address ? 1 : 0))
+                          .map((address) => (
                           <label
                             key={address.id}
                             className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
@@ -659,7 +720,10 @@ export default function CheckoutPage() {
                           Adresse de facturation
                         </label>
                         <div className="space-y-2">
-                          {addresses.filter(a => a.is_invoicing_address).map((address) => (
+                          {addresses
+                            .filter(a => a.is_invoicing_address)
+                            .sort((a, b) => (b.is_default_address ? 1 : 0) - (a.is_default_address ? 1 : 0))
+                            .map((address) => (
                             <label
                               key={address.id}
                               className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
@@ -676,9 +740,16 @@ export default function CheckoutPage() {
                                 style={{ accentColor: '#172867' }}
                               />
                               <div className="flex-1">
-                                <p className="font-medium" style={{ color: '#172867' }}>
-                                  {address.name}
-                                </p>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <p className="font-medium" style={{ color: '#172867' }}>
+                                    {address.name}
+                                  </p>
+                                  {address.is_default_address && (
+                                    <span className="text-xs px-2 py-0.5 rounded font-medium" style={{ backgroundColor: '#A0A12F', color: 'white' }}>
+                                      Défaut
+                                    </span>
+                                  )}
+                                </div>
                                 <p className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
                                   {address.address_line_1}
                                   {address.address_line_2 && <><br />{address.address_line_2}</>}
@@ -711,7 +782,10 @@ export default function CheckoutPage() {
                           Adresse de livraison
                         </label>
                         <div className="space-y-2">
-                          {addresses.filter(a => a.is_delivery_address).map((address) => (
+                          {addresses
+                            .filter(a => a.is_delivery_address)
+                            .sort((a, b) => (b.is_default_address ? 1 : 0) - (a.is_default_address ? 1 : 0))
+                            .map((address) => (
                             <label
                               key={address.id}
                               className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
@@ -728,9 +802,16 @@ export default function CheckoutPage() {
                                 style={{ accentColor: '#172867' }}
                               />
                               <div className="flex-1">
-                                <p className="font-medium" style={{ color: '#172867' }}>
-                                  {address.name}
-                                </p>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <p className="font-medium" style={{ color: '#172867' }}>
+                                    {address.name}
+                                  </p>
+                                  {address.is_default_address && (
+                                    <span className="text-xs px-2 py-0.5 rounded font-medium" style={{ backgroundColor: '#A0A12F', color: 'white' }}>
+                                      Défaut
+                                    </span>
+                                  )}
+                                </div>
                                 <p className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
                                   {address.address_line_1}
                                   {address.address_line_2 && <><br />{address.address_line_2}</>}
@@ -982,7 +1063,7 @@ export default function CheckoutPage() {
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-center">
               <h3 className="text-2xl font-bold" style={{ color: '#172867' }}>
-                Nouvelle adresse {addressFormType === 'billing' ? 'de facturation' : 'de livraison'}
+                Nouvelle adresse
               </h3>
               <button
                 onClick={() => setShowAddressForm(false)}
@@ -1137,6 +1218,43 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
+              <div className="space-y-3 pt-2 border-t border-gray-200">
+                <p className="text-sm font-medium" style={{ color: '#172867' }}>
+                  Utiliser cette adresse pour : *
+                </p>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isBillingAddress}
+                      onChange={(e) => setIsBillingAddress(e.target.checked)}
+                      className="w-4 h-4"
+                      style={{ accentColor: '#A0A12F' }}
+                    />
+                    <span className="text-sm" style={{ color: '#172867' }}>
+                      Adresse de facturation
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isDeliveryAddress}
+                      onChange={(e) => setIsDeliveryAddress(e.target.checked)}
+                      className="w-4 h-4"
+                      style={{ accentColor: '#A0A12F' }}
+                    />
+                    <span className="text-sm" style={{ color: '#172867' }}>
+                      Adresse de livraison
+                    </span>
+                  </label>
+                </div>
+                {!isBillingAddress && !isDeliveryAddress && (
+                  <p className="text-xs text-red-600">
+                    Veuillez sélectionner au moins une option
+                  </p>
+                )}
+              </div>
+
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -1166,7 +1284,7 @@ export default function CheckoutPage() {
                     console.log('🖱️ [CHECKOUT] Button disabled?', savingAddress || !addressFormData.firstName || !addressFormData.lastName || !addressFormData.addressLine1 || !addressFormData.city || !addressFormData.postalCode || !addressFormData.country);
                     handleSaveAddress();
                   }}
-                  disabled={savingAddress || !addressFormData.firstName || !addressFormData.lastName || !addressFormData.addressLine1 || !addressFormData.city || !addressFormData.postalCode || !addressFormData.country}
+                  disabled={savingAddress || !addressFormData.firstName || !addressFormData.lastName || !addressFormData.addressLine1 || !addressFormData.city || !addressFormData.postalCode || !addressFormData.country || (!isBillingAddress && !isDeliveryAddress)}
                   className="flex-1 px-6 py-3 rounded-lg font-medium text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ backgroundColor: '#A0A12F' }}
                 >
