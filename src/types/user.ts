@@ -1,3 +1,5 @@
+export type UserRole = "ROLE_CLIENT" | "ROLE_COMMERCIAL" | "ROLE_LIVREUR" | "ROLE_ADMIN" | "ROLE_USER";
+
 export interface User {
   id: string;
   email: string;
@@ -5,6 +7,20 @@ export interface User {
   lastName: string;
   phone?: string;
   companyId?: string; // ID de l'entreprise dans Sellsy
+  type?: "INDIVIDUAL" | "COMPANY";
+  role?: UserRole | UserRole[]; // Rôle(s) de l'utilisateur
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Client {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  companyName?: string;
+  companyId?: string;
   type?: "INDIVIDUAL" | "COMPANY";
   createdAt: string;
   updatedAt: string;
@@ -29,7 +45,10 @@ export interface RegisterData {
   phone?: string;
   type?: "INDIVIDUAL" | "COMPANY";
   companyName?: string;
-  siren?: string;
+  siret?: string;
+  vatNumber?: string;
+  rcs?: string;
+  legalForm?: string;
 }
 
 export interface ResetPasswordData {

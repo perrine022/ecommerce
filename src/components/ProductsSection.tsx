@@ -9,7 +9,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Star, ShoppingCart, Search, SlidersHorizontal } from 'lucide-react';
+import { Star, ShoppingCart, Search, SlidersHorizontal, Plus, Minus } from 'lucide-react';
 import { Product, Category } from '@/types/product';
 import { useCart } from '@/contexts/CartContext';
 import { productApi, categoryApi } from '@/services/api';
@@ -270,7 +270,29 @@ export default function ProductsSection() {
 }
 
 function ProductCard({ product }: { product: Product }) {
-  const { addItem } = useCart();
+  const { addItem, updateQuantity, removeItem, items } = useCart();
+  const cartItem = items.find(item => item.product.id === product.id);
+  const quantity = cartItem?.quantity || 0;
+
+  const handleIncrease = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (quantity === 0) {
+      addItem(product, 1);
+    } else {
+      updateQuantity(product.id, quantity + 1);
+    }
+  };
+
+  const handleDecrease = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (quantity > 1) {
+      updateQuantity(product.id, quantity - 1);
+    } else if (quantity === 1) {
+      removeItem(product.id);
+    }
+  };
 
   return (
     <Link href={`/produit/${product.id}`} className="group">
@@ -343,17 +365,42 @@ function ProductCard({ product }: { product: Product }) {
                 </span>
               )}
             </div>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                addItem(product);
-              }}
-              disabled={!product.inStock}
-              className="p-3 rounded-full hover:scale-110 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: '#A0A12F', color: 'white' }}
-            >
-              <ShoppingCart className="w-5 h-5" />
-            </button>
+            {quantity > 0 ? (
+              <div className="flex items-center gap-2 bg-white rounded-full shadow-md border" style={{ borderColor: '#A0A12F' }}>
+                <button
+                  onClick={handleDecrease}
+                  disabled={!product.inStock}
+                  className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ color: '#A0A12F' }}
+                >
+                  <Minus className="w-4 h-4" />
+                </button>
+                <span className="text-base font-semibold min-w-[24px] text-center" style={{ color: '#172867' }}>
+                  {quantity}
+                </span>
+                <button
+                  onClick={handleIncrease}
+                  disabled={!product.inStock}
+                  className="p-2 rounded-full hover:bg-gray-100 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ color: '#A0A12F' }}
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  addItem(product);
+                }}
+                disabled={!product.inStock}
+                className="p-3 rounded-full hover:scale-110 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: '#A0A12F', color: 'white' }}
+              >
+                <ShoppingCart className="w-5 h-5" />
+              </button>
+            )}
           </div>
         </div>
       </div>

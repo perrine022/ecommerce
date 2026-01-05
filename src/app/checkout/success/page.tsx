@@ -7,7 +7,7 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useEffect, Suspense } from 'react';
+import { useEffect, Suspense, useRef } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { CheckCircle, Package } from 'lucide-react';
@@ -19,11 +19,13 @@ function CheckoutSuccessContent() {
   const router = useRouter();
   const { clearCart } = useCart();
   const orderId = searchParams.get('orderId');
+  const hasClearedCart = useRef(false);
 
   useEffect(() => {
-    if (orderId) {
+    if (orderId && !hasClearedCart.current) {
+      hasClearedCart.current = true;
       clearCart();
-    } else {
+    } else if (!orderId) {
       router.push('/');
     }
   }, [orderId, clearCart, router]);

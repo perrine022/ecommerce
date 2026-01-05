@@ -145,7 +145,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                     Produit vedette
                   </div>
                 )}
-                <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight" style={{ color: '#172867' }}>
+                <h1 className="text-2xl md:text-3xl font-bold mb-4 leading-tight" style={{ color: '#172867' }}>
                   {product.title}
                 </h1>
                 
@@ -300,6 +300,21 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
               {/* Quantity and Add to Cart */}
               <div className="space-y-4 pt-6 border-t border-gray-200">
+                {/* Total Amount - More Visible */}
+                {product.inStock && (
+                  <div className="bg-gradient-to-br from-[#A0A12F]/10 to-transparent rounded-xl p-6 border-2" style={{ borderColor: '#A0A12F' }}>
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-lg font-semibold" style={{ color: '#172867' }}>Total :</span>
+                      <span className="text-3xl md:text-4xl font-bold" style={{ color: '#A0A12F' }}>
+                        {(product.price * quantity).toFixed(2)} €
+                      </span>
+                    </div>
+                    <p className="text-xs mt-2" style={{ color: '#172867', opacity: 0.6 }}>
+                      {quantity} {quantity === 1 ? 'article' : 'articles'} × {product.price.toFixed(2)} €
+                    </p>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-lg" style={{ color: '#172867' }}>Quantité</span>
                   <div className="flex items-center gap-3 border rounded-lg" style={{ borderColor: '#A0A12F' }}>
@@ -327,18 +342,12 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                 <button
                   onClick={() => product && addItem(product, quantity)}
                   disabled={!product.inStock}
-                  className="w-full py-4 rounded-lg font-semibold text-white transition-all hover:opacity-90 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 text-lg"
+                  className="w-auto mx-auto px-8 py-4 rounded-lg font-semibold text-white transition-all hover:opacity-90 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 text-lg"
                   style={{ backgroundColor: '#A0A12F' }}
                 >
                   <ShoppingCart className="w-6 h-6" />
                   {product.inStock ? 'Ajouter au panier' : 'Rupture de stock'}
                 </button>
-
-                {product.inStock && (
-                  <p className="text-center text-sm" style={{ color: '#172867', opacity: 0.6 }}>
-                    Total: <span className="font-bold" style={{ color: '#A0A12F' }}>{(product.price * quantity).toFixed(2)} €</span>
-                  </p>
-                )}
               </div>
 
               {/* Trust badges */}

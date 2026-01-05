@@ -23,7 +23,10 @@ export default function RegisterPage() {
     password: '',
     confirmPassword: '',
     companyName: '',
-    siren: '',
+    siret: '',
+    vatNumber: '',
+    rcs: '',
+    legalForm: '',
     phone: '',
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -31,71 +34,80 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
-  const [validatingSiren, setValidatingSiren] = useState(false);
-  const [sirenValid, setSirenValid] = useState<boolean | null>(null);
-  const [sirenError, setSirenError] = useState('');
+  const [validatingSiret, setValidatingSiret] = useState(false);
+  const [siretValid, setSiretValid] = useState<boolean | null>(null);
+  const [siretError, setSiretError] = useState('');
 
-  const validateSiren = useCallback(async (siren: string) => {
-    setValidatingSiren(true);
-    setSirenError('');
-    setSirenValid(null);
+  const validateSiret = useCallback(async (siret: string) => {
+    setValidatingSiret(true);
+    setSiretError('');
+    setSiretValid(null);
 
     try {
-      const data = await authApi.validateSirene(siren);
+      const data = await authApi.validateSirene(siret);
       // Remplir automatiquement les champs
       setFormData(prev => ({
         ...prev,
         companyName: data.name || prev.companyName,
       }));
-      setSirenValid(true);
-      setSirenError('');
+      setSiretValid(true);
+      setSiretError('');
     } catch (err: any) {
-      setSirenValid(false);
+      setSiretValid(false);
       // Afficher un message générique pour les erreurs 400/404 (entreprise non trouvée ou invalide)
       if (err.status === 400 || err.status === 404) {
-        setSirenError('L\'entreprise n\'est pas valide');
+        setSiretError('L\'entreprise n\'est pas valide');
       } else {
-        setSirenError('Erreur lors de la validation du SIREN');
+        setSiretError('Erreur lors de la validation du SIRET');
       }
     } finally {
-      setValidatingSiren(false);
+      setValidatingSiret(false);
     }
   }, []);
-
-  // Validation automatique du SIREN quand 9 chiffres sont saisis
-  useEffect(() => {
-    const sirenDigits = formData.siren.replace(/\D/g, '');
-    if (sirenDigits.length === 9) {
-      validateSiren(sirenDigits);
-    } else {
-      setSirenValid(null);
-      setSirenError('');
-    }
-  }, [formData.siren, validateSiren]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    // Vérifier que le SIREN est valide
-    const sirenDigits = formData.siren.replace(/\D/g, '');
-    if (sirenDigits.length !== 9) {
-      setError('Le SIREN doit contenir 9 chiffres');
+    // Vérifier que le SIRET est valide (14 chiffres)
+    const siretDigits = formData.siret.replace(/\D/g, '');
+    if (siretDigits.length !== 14) {
+      setError('Le SIRET doit contenir 14 chiffres');
       return;
     }
 
-    if (sirenValid === false) {
+    if (siretValid === false) {
       setError('Impossible de s\'inscrire : la société n\'existe pas dans la base SIRENE');
       return;
     }
 
-    if (sirenValid === null || validatingSiren) {
-      setError('Veuillez attendre la validation du SIREN');
+    if (siretValid === null || validatingSiret) {
+      setError('Veuillez attendre la validation du SIRET');
       return;
     }
 
     if (!formData.companyName.trim()) {
       setError('Le nom de la société est obligatoire');
+      return;
+    }
+
+    if (!formData.vatNumber.trim()) {
+      setError('Le numéro TVA est obligatoire');
+      return;
+    }
+
+    if (formData.vatNumber.trim().length !== 15) {
+      setError('Le numéro TVA doit contenir exactement 15 caractères');
+      return;
+    }
+
+    if (!formData.rcs.trim()) {
+      setError('Le RCS est obligatoire');
+      return;
+    }
+
+    if (!formData.legalForm.trim()) {
+      setError('La forme juridique est obligatoire');
       return;
     }
 
@@ -120,7 +132,10 @@ export default function RegisterPage() {
         phone: formData.phone || undefined,
         type: 'COMPANY',
         companyName: formData.companyName,
-        siren: formData.siren,
+        siret: formData.siret,
+        vatNumber: formData.vatNumber,
+        rcs: formData.rcs,
+        legalForm: formData.legalForm,
       });
       router.push('/inscription/confirmation');
     } catch (err: any) {
@@ -217,52 +232,62 @@ export default function RegisterPage() {
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  {/* Champ SIREN */}
+                  {/* Champ SIRET */}
                   <div className="animate-fade-in-up animation-delay-300">
                     <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
-                      SIREN <span className="text-red-500">*</span>
+                      SIRET <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                        <Building2 className="w-4 h-4 transition-colors" style={{ color: focusedField === 'siren' ? '#A0A12F' : '#172867', opacity: focusedField === 'siren' ? 0.8 : 0.4 }} />
+                        <Building2 className="w-4 h-4 transition-colors" style={{ color: focusedField === 'siret' ? '#A0A12F' : '#172867', opacity: focusedField === 'siret' ? 0.8 : 0.4 }} />
                       </div>
                       <input
                         type="text"
                         required
-                        value={formData.siren}
+                        value={formData.siret}
                         onChange={(e) => {
-                          const value = e.target.value.replace(/\D/g, '').slice(0, 9);
-                          setFormData({ ...formData, siren: value });
+                          const value = e.target.value.replace(/\D/g, '').slice(0, 14);
+                          setFormData({ ...formData, siret: value });
                         }}
-                        onFocus={() => setFocusedField('siren')}
-                        onBlur={() => setFocusedField(null)}
+                        onFocus={() => setFocusedField('siret')}
+                        onBlur={(e) => {
+                          setFocusedField(null);
+                          // Valider le SIRET si 14 chiffres sont saisis
+                          const siretDigits = formData.siret.replace(/\D/g, '');
+                          if (siretDigits.length === 14) {
+                            validateSiret(siretDigits);
+                          } else {
+                            setSiretValid(null);
+                            setSiretError('');
+                          }
+                        }}
                         className="w-full pl-10 pr-10 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white"
                         style={{ 
-                          borderColor: sirenValid === false 
+                          borderColor: siretValid === false 
                             ? '#ef4444' 
-                            : sirenValid === true 
+                            : siretValid === true 
                             ? '#10b981' 
-                            : focusedField === 'siren' 
+                            : focusedField === 'siret' 
                             ? '#A0A12F' 
                             : 'rgba(160, 161, 47, 0.3)',
                           color: '#172867',
                         }}
-                        placeholder="123456789"
-                        maxLength={9}
+                        placeholder="12345678901234"
+                        maxLength={14}
                       />
-                      {validatingSiren && (
+                      {validatingSiret && (
                         <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                           <Loader2 className="w-4 h-4 animate-spin" style={{ color: '#A0A12F' }} />
                         </div>
                       )}
-                      {!validatingSiren && sirenValid === true && (
+                      {!validatingSiret && siretValid === true && (
                         <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                           <svg className="w-4 h-4" style={{ color: '#10b981' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
                         </div>
                       )}
-                      {!validatingSiren && sirenValid === false && (
+                      {!validatingSiret && siretValid === false && (
                         <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                           <svg className="w-4 h-4" style={{ color: '#ef4444' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -270,15 +295,113 @@ export default function RegisterPage() {
                         </div>
                       )}
                     </div>
-                    {sirenError && (
-                      <p className="mt-1 text-xs text-red-600">{sirenError}</p>
+                    {siretError && (
+                      <p className="mt-1 text-xs text-red-600">{siretError}</p>
                     )}
-                    {sirenValid === true && (
+                    {siretValid === true && (
                       <p className="mt-1 text-xs" style={{ color: '#10b981' }}>Société validée</p>
                     )}
                     <p className="mt-1 text-xs" style={{ color: '#172867', opacity: 0.5 }}>
-                      9 chiffres requis
+                      14 chiffres requis
                     </p>
+                  </div>
+
+                  {/* Champ Numéro TVA */}
+                  <div className="animate-fade-in-up animation-delay-350">
+                    <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
+                      Numéro TVA <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                        <Building2 className="w-4 h-4 transition-colors" style={{ color: focusedField === 'vatNumber' ? '#A0A12F' : '#172867', opacity: focusedField === 'vatNumber' ? 0.8 : 0.4 }} />
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        value={formData.vatNumber}
+                        onChange={(e) => {
+                          const value = e.target.value.slice(0, 15);
+                          setFormData({ ...formData, vatNumber: value });
+                        }}
+                        onFocus={() => setFocusedField('vatNumber')}
+                        onBlur={() => setFocusedField(null)}
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white"
+                        style={{ 
+                          borderColor: focusedField === 'vatNumber' ? '#A0A12F' : 'rgba(160, 161, 47, 0.3)',
+                          color: '#172867',
+                        }}
+                        placeholder="FR12345678901"
+                        maxLength={15}
+                      />
+                    </div>
+                    <p className="mt-1 text-xs" style={{ color: '#172867', opacity: 0.5 }}>
+                      15 caractères requis
+                    </p>
+                  </div>
+
+                  {/* Champ RCS */}
+                  <div className="animate-fade-in-up animation-delay-400">
+                    <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
+                      RCS <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                        <Building2 className="w-4 h-4 transition-colors" style={{ color: focusedField === 'rcs' ? '#A0A12F' : '#172867', opacity: focusedField === 'rcs' ? 0.8 : 0.4 }} />
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        value={formData.rcs}
+                        onChange={(e) => setFormData({ ...formData, rcs: e.target.value })}
+                        onFocus={() => setFocusedField('rcs')}
+                        onBlur={() => setFocusedField(null)}
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white"
+                        style={{ 
+                          borderColor: focusedField === 'rcs' ? '#A0A12F' : 'rgba(160, 161, 47, 0.3)',
+                          color: '#172867',
+                        }}
+                        placeholder="RCS Paris B 123 456 789"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Champ Forme juridique */}
+                  <div className="animate-fade-in-up animation-delay-450">
+                    <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
+                      Forme juridique <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                        <Building2 className="w-4 h-4 transition-colors" style={{ color: focusedField === 'legalForm' ? '#A0A12F' : '#172867', opacity: focusedField === 'legalForm' ? 0.8 : 0.4 }} />
+                      </div>
+                      <select
+                        required
+                        value={formData.legalForm}
+                        onChange={(e) => setFormData({ ...formData, legalForm: e.target.value })}
+                        onFocus={() => setFocusedField('legalForm')}
+                        onBlur={() => setFocusedField(null)}
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white appearance-none cursor-pointer"
+                        style={{ 
+                          borderColor: focusedField === 'legalForm' ? '#A0A12F' : 'rgba(160, 161, 47, 0.3)',
+                          color: '#172867',
+                        }}
+                      >
+                        <option value="">Sélectionner une forme juridique</option>
+                        <option value="SARL">SARL</option>
+                        <option value="SAS">SAS</option>
+                        <option value="SA">SA</option>
+                        <option value="EURL">EURL</option>
+                        <option value="SNC">SNC</option>
+                        <option value="SCI">SCI</option>
+                        <option value="SASU">SASU</option>
+                        <option value="AUTRE">Autre</option>
+                      </select>
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                        <svg className="w-4 h-4" style={{ color: '#172867', opacity: 0.5 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Nom de société */}

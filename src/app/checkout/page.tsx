@@ -12,23 +12,40 @@ import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { addressApi, shippingApi, orderApi, cartApi } from '@/services/api';
+import { addressApi, shippingApi, orderApi, cartApi, userApi, paymentApi } from '@/services/api';
 import { Address, CreateAddressData, CompanyAddress, CreateCompanyAddressData } from '@/types/address';
 import { ShippingMethod } from '@/types/shipping';
-import { ArrowLeft, Plus, MapPin, Truck, X } from 'lucide-react';
+import { ArrowLeft, Plus, MapPin, Truck, X, Users, CreditCard } from 'lucide-react';
 import Link from 'next/link';
+import { Client } from '@/types/user';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, getTotal } = useCart();
   const { isAuthenticated, user, refreshUser, updateUser } = useAuth();
-  const [step, setStep] = useState(1); // 1: Adresses, 2: Livraison, 3: Paiement
+  const [step, setStep] = useState(1); // 1: Adresses, 2: Livraison, 3: Récapitulatif, 4: Paiement
   const [addresses, setAddresses] = useState<CompanyAddress[]>([]);
   const [billingAddressId, setBillingAddressId] = useState<string>('');
   const [shippingAddressId, setShippingAddressId] = useState<string>('');
   const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([]);
   const [selectedShippingMethod, setSelectedShippingMethod] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [orderCreated, setOrderCreated] = useState(false);
+  const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
+  const [paymentSheetData, setPaymentSheetData] = useState<{
+    paymentIntent: string;
+    ephemeralKey: string;
+    customer: string;
+    publishableKey: string;
+  } | null>(null);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  
+  // État pour les commerciaux
+  const [clients, setClients] = useState<Client[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<string>('');
+  const [clientAddresses, setClientAddresses] = useState<CompanyAddress[]>([]);
   
   // État pour le formulaire d'adresse
   const [showAddressForm, setShowAddressForm] = useState(false);
@@ -48,6 +65,10 @@ export default function CheckoutPage() {
   });
   const [savingAddress, setSavingAddress] = useState(false);
 
+  // Vérifier si l'utilisateur est commercial
+  const userRoles = Array.isArray(user?.role) ? user.role : user?.role ? [user.role] : [];
+  const isCommercial = userRoles.includes('ROLE_COMMERCIAL') || userRoles.includes('ROLE_ADMIN');
+
   useEffect(() => {
     if (!isAuthenticated) {
       router.push('/connexion?redirect=/checkout');
@@ -59,8 +80,24 @@ export default function CheckoutPage() {
       return;
     }
 
-    loadAddresses();
-  }, [isAuthenticated, items.length, router, user]);
+    if (isCommercial) {
+      loadClients();
+      // Vérifier si un client a été sélectionné depuis le dashboard
+      const storedClientId = localStorage.getItem('selectedClientId');
+      if (storedClientId) {
+        setSelectedClientId(storedClientId);
+        localStorage.removeItem('selectedClientId');
+      }
+    } else {
+      loadAddresses();
+    }
+  }, [isAuthenticated, items.length, router, user, isCommercial]);
+
+  useEffect(() => {
+    if (isCommercial && selectedClientId) {
+      loadClientAddresses(selectedClientId);
+    }
+  }, [selectedClientId, isCommercial]);
 
   const loadAddresses = async () => {
     try {
@@ -87,6 +124,30 @@ export default function CheckoutPage() {
       if (firstShipping) setShippingAddressId(firstShipping.id);
     } catch (error) {
       console.error('Failed to load addresses:', error);
+    }
+  };
+
+  const loadClients = async () => {
+    try {
+      // L'API retourne directement un tableau de clients
+      const clientsList = await userApi.getCommercialClients();
+      setClients(Array.isArray(clientsList) ? clientsList : []);
+    } catch (error) {
+      console.error('Failed to load clients:', error);
+    }
+  };
+
+  const loadClientAddresses = async (clientId: string) => {
+    try {
+      const response = await addressApi.getUserAddresses(clientId);
+      setClientAddresses(response.data || []);
+      // Sélectionner la première adresse de facturation et de livraison par défaut
+      const firstBilling = response.data?.find(a => a.is_invoicing_address);
+      const firstShipping = response.data?.find(a => a.is_delivery_address);
+      if (firstBilling) setBillingAddressId(firstBilling.id);
+      if (firstShipping) setShippingAddressId(firstShipping.id);
+    } catch (error) {
+      console.error('Failed to load client addresses:', error);
     }
   };
 
@@ -252,9 +313,16 @@ export default function CheckoutPage() {
 
   const handleNext = () => {
     if (step === 1) {
-      // À l'étape 1, si les adresses sont sélectionnées, finaliser directement la commande
+      if (isCommercial) {
+        // Pour les commerciaux, vérifier qu'un client est sélectionné
+        if (!selectedClientId) {
+          alert('Veuillez sélectionner un client');
+          return;
+        }
+      }
+      // À l'étape 1, si les adresses sont sélectionnées, créer la commande
       if (billingAddressId && shippingAddressId) {
-        handlePlaceOrder();
+        handleCreateOrder();
       } else {
         alert('Veuillez sélectionner une adresse de facturation et une adresse de livraison');
       }
@@ -265,19 +333,15 @@ export default function CheckoutPage() {
     }
   };
 
-  const handlePlaceOrder = async () => {
+  // Fonction pour créer la commande (sans paiement)
+  const handleCreateOrder = async () => {
     setLoading(true);
     try {
-      // Étape 1: Préparer le panier en ajoutant tous les produits
-      // Le backend récupère automatiquement le panier de l'utilisateur connecté
-      // On s'assure que le panier backend est à jour en ajoutant tous les produits
-      for (const item of items) {
-        try {
-          await cartApi.addItem(item.product.id, item.quantity);
-        } catch (error) {
-          console.error(`Failed to add product ${item.product.id} to cart:`, error);
-          // Continue même si un produit échoue (peut-être déjà dans le panier)
-        }
+      // Étape 1: Vérifier que le panier n'est pas vide
+      if (items.length === 0) {
+        alert('Votre panier est vide');
+        setLoading(false);
+        return;
       }
 
       // Étape 2: Vérifier que les adresses sont sélectionnées
@@ -287,28 +351,87 @@ export default function CheckoutPage() {
         return;
       }
 
-      // Convertir les IDs en nombres (le backend Sellsy attend des nombres)
-      // Les IDs peuvent être des strings ou des nombres selon la réponse de l'API
+      // Étape 3: Convertir les IDs d'adresses en nombres (Long pour Sellsy)
       const invoicingAddressId = typeof billingAddressId === 'string' 
-        ? (isNaN(Number(billingAddressId)) ? billingAddressId : Number(billingAddressId))
+        ? Number(billingAddressId)
         : billingAddressId;
       const deliveryAddressId = typeof shippingAddressId === 'string'
-        ? (isNaN(Number(shippingAddressId)) ? shippingAddressId : Number(shippingAddressId))
+        ? Number(shippingAddressId)
         : shippingAddressId;
 
-      // Étape 3: Finaliser la commande et l'envoyer à Sellsy
-      // POST /api/v1/orders transforme le panier en commande, enregistre les adresses et envoie à Sellsy V2
-      const order = await orderApi.createOrder({
+      // Vérifier que les IDs sont valides
+      if (isNaN(invoicingAddressId) || isNaN(deliveryAddressId)) {
+        alert('Erreur : Les identifiants d\'adresse ne sont pas valides');
+        setLoading(false);
+        return;
+      }
+
+      // Étape 4: Préparer les items pour la payload
+      // Format attendu : [{ productId: "uuid", quantity: number }]
+      const orderItems = items.map(item => ({
+        productId: item.product.id, // UUID du produit
+        quantity: item.quantity, // Integer
+      }));
+
+      // Étape 5: Construire la payload selon les spécifications
+      const orderData: {
+        invoicingAddressId: number;
+        deliveryAddressId: number;
+        items: Array<{ productId: string; quantity: number }>;
+        clientId?: string;
+      } = {
         invoicingAddressId: invoicingAddressId as number,
         deliveryAddressId: deliveryAddressId as number,
-      });
-
-      // Étape 4: Rediriger vers la page de succès avec l'ID de la commande
-      router.push(`/checkout/success?orderId=${order.id}`);
+        items: orderItems,
+      };
+      
+      // Pour les commerciaux, ajouter le clientId (UUID)
+      if (isCommercial && selectedClientId) {
+        orderData.clientId = selectedClientId;
+      }
+      
+      // Étape 6: Créer la commande
+      const order = await orderApi.createOrder(orderData);
+      setCreatedOrderId(order.id);
+      setOrderCreated(true);
+      
+      // Passer à l'étape 3 (récapitulatif) après création de la commande
+      setStep(3);
     } catch (error: any) {
-      console.error('Failed to place order:', error);
+      console.error('Failed to create order:', error);
       const errorMessage = error?.message || error?.data?.message || 'Erreur lors de la création de la commande';
       alert(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fonction pour initier le paiement Stripe
+  const handlePayWithStripe = async () => {
+    if (!createdOrderId) {
+      alert('Veuillez d\'abord créer la commande');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Calculer le montant total en centimes pour Stripe
+      const amountInCents = Math.round(total * 100);
+      
+      // Créer le Payment Sheet Stripe
+      const paymentSheet = await paymentApi.createPaymentSheet({
+        amount: amountInCents,
+        currency: 'eur',
+        description: `Commande TradeFood #${createdOrderId.substring(0, 8)}`,
+        userId: user?.id,
+      });
+      
+      setPaymentSheetData(paymentSheet);
+      setShowPaymentForm(true);
+      setStep(4); // Passer à l'étape de paiement
+    } catch (error: any) {
+      console.error('Failed to create payment sheet:', error);
+      alert('Erreur lors de l\'initialisation du paiement. Veuillez réessayer.');
     } finally {
       setLoading(false);
     }
@@ -339,12 +462,75 @@ export default function CheckoutPage() {
 
           <div className="grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
-              {/* Step 1: Adresses */}
+              {/* Step 1: Adresses ou Clients (pour commerciaux) */}
               {step === 1 && (
                 <div className="bg-white rounded-lg border-2 border-gray-100 p-6">
                   <h2 className="text-xl font-bold mb-6" style={{ color: '#172867' }}>
-                    Adresses
+                    {isCommercial ? 'Sélectionner un client' : 'Adresses'}
                   </h2>
+                  
+                  {isCommercial ? (
+                    <div className="space-y-6">
+                      {!selectedClientId ? (
+                        <div>
+                          <p className="text-sm mb-4" style={{ color: '#172867', opacity: 0.7 }}>
+                            Sélectionnez le client pour lequel vous passez cette commande
+                          </p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {clients.map((client) => (
+                              <div
+                                key={client.id}
+                                onClick={() => setSelectedClientId(client.id)}
+                                className="border-2 rounded-lg p-4 cursor-pointer hover:shadow-md transition-all"
+                                style={{ 
+                                  borderColor: selectedClientId === client.id ? '#A0A12F' : 'rgba(160, 161, 47, 0.3)',
+                                  backgroundColor: selectedClientId === client.id ? 'rgba(160, 161, 47, 0.05)' : 'white'
+                                }}
+                              >
+                                <div className="flex items-start gap-3">
+                                  <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#A0A12F', opacity: 0.1 }}>
+                                    <Users className="w-5 h-5" style={{ color: '#A0A12F' }} />
+                                  </div>
+                                  <div className="flex-1">
+                                    <h3 className="font-bold text-lg mb-1" style={{ color: '#172867' }}>
+                                      {client.companyName || `${client.firstName} ${client.lastName}`}
+                                    </h3>
+                                    <p className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
+                                      {client.email}
+                                    </p>
+                                    {client.phone && (
+                                      <p className="text-sm mt-1" style={{ color: '#172867', opacity: 0.6 }}>
+                                        {client.phone}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-6">
+                          {/* Afficher les adresses du client sélectionné */}
+                          <div className="flex items-center justify-between mb-4">
+                            <div>
+                              <p className="font-semibold" style={{ color: '#172867' }}>
+                                Client sélectionné : {clients.find(c => c.id === selectedClientId)?.companyName || clients.find(c => c.id === selectedClientId)?.firstName}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setSelectedClientId('');
+                                setClientAddresses([]);
+                                setBillingAddressId('');
+                                setShippingAddressId('');
+                              }}
+                              className="text-sm font-medium hover:opacity-80 transition-opacity"
+                              style={{ color: '#A0A12F' }}
+                            >
+                              Changer de client
+                            </button>
+                          </div>
                   
                   <div className="space-y-6">
                     <div>
@@ -352,7 +538,7 @@ export default function CheckoutPage() {
                         Adresse de facturation
                       </label>
                       <div className="space-y-2">
-                        {addresses.filter(a => a.is_invoicing_address).map((address) => (
+                        {(isCommercial ? clientAddresses : addresses).filter(a => a.is_invoicing_address).map((address) => (
                           <label
                             key={address.id}
                             className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
@@ -385,18 +571,20 @@ export default function CheckoutPage() {
                             </div>
                           </label>
                         ))}
-                        {addresses.filter(a => a.is_invoicing_address).length === 0 && (
+                        {(isCommercial ? clientAddresses : addresses).filter(a => a.is_invoicing_address).length === 0 && (
                           <p className="text-sm text-gray-500 italic">Aucune adresse de facturation</p>
                         )}
                       </div>
-                      <button
-                        onClick={() => openAddressForm('billing')}
-                        className="mt-3 inline-flex items-center gap-2 text-sm font-medium hover:opacity-80 transition-opacity px-4 py-2 rounded-lg border-2"
-                        style={{ color: '#A0A12F', borderColor: '#A0A12F' }}
-                      >
-                        <Plus className="w-4 h-4" />
-                        Ajouter une adresse de facturation
-                      </button>
+                      {!isCommercial && (
+                        <button
+                          onClick={() => openAddressForm('billing')}
+                          className="mt-3 inline-flex items-center gap-2 text-sm font-medium hover:opacity-80 transition-opacity px-4 py-2 rounded-lg border-2"
+                          style={{ color: '#A0A12F', borderColor: '#A0A12F' }}
+                        >
+                          <Plus className="w-4 h-4" />
+                          Ajouter une adresse de facturation
+                        </button>
+                      )}
                     </div>
 
                     <div>
@@ -404,7 +592,7 @@ export default function CheckoutPage() {
                         Adresse de livraison
                       </label>
                       <div className="space-y-2">
-                        {addresses.filter(a => a.is_delivery_address).map((address) => (
+                        {(isCommercial ? clientAddresses : addresses).filter(a => a.is_delivery_address).map((address) => (
                           <label
                             key={address.id}
                             className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
@@ -437,20 +625,132 @@ export default function CheckoutPage() {
                             </div>
                           </label>
                         ))}
-                        {addresses.filter(a => a.is_delivery_address).length === 0 && (
+                        {(isCommercial ? clientAddresses : addresses).filter(a => a.is_delivery_address).length === 0 && (
                           <p className="text-sm text-gray-500 italic">Aucune adresse de livraison</p>
                         )}
                       </div>
-                      <button
-                        onClick={() => openAddressForm('shipping')}
-                        className="mt-3 inline-flex items-center gap-2 text-sm font-medium hover:opacity-80 transition-opacity px-4 py-2 rounded-lg border-2"
-                        style={{ color: '#A0A12F', borderColor: '#A0A12F' }}
-                      >
-                        <Plus className="w-4 h-4" />
-                        Ajouter une adresse de livraison
-                      </button>
+                      {!isCommercial && (
+                        <button
+                          onClick={() => openAddressForm('shipping')}
+                          className="mt-3 inline-flex items-center gap-2 text-sm font-medium hover:opacity-80 transition-opacity px-4 py-2 rounded-lg border-2"
+                          style={{ color: '#A0A12F', borderColor: '#A0A12F' }}
+                        >
+                          <Plus className="w-4 h-4" />
+                          Ajouter une adresse de livraison
+                        </button>
+                      )}
                     </div>
                   </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div>
+                        <label className="block text-sm font-medium mb-3" style={{ color: '#172867' }}>
+                          Adresse de facturation
+                        </label>
+                        <div className="space-y-2">
+                          {addresses.filter(a => a.is_invoicing_address).map((address) => (
+                            <label
+                              key={address.id}
+                              className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                                billingAddressId === address.id ? 'border-[#172867] bg-[#172867]/5' : 'border-gray-200 hover:border-gray-300'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name="billing"
+                                value={address.id}
+                                checked={billingAddressId === address.id}
+                                onChange={(e) => setBillingAddressId(e.target.value)}
+                                className="mt-1"
+                                style={{ accentColor: '#172867' }}
+                              />
+                              <div className="flex-1">
+                                <p className="font-medium" style={{ color: '#172867' }}>
+                                  {address.name}
+                                </p>
+                                <p className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
+                                  {address.address_line_1}
+                                  {address.address_line_2 && <><br />{address.address_line_2}</>}
+                                  {address.address_line_3 && <><br />{address.address_line_3}</>}
+                                  {address.address_line_4 && <><br />{address.address_line_4}</>}
+                                  <br />
+                                  {address.postal_code} {address.city}
+                                  <br />
+                                  {address.country_code}
+                                </p>
+                              </div>
+                            </label>
+                          ))}
+                          {addresses.filter(a => a.is_invoicing_address).length === 0 && (
+                            <p className="text-sm text-gray-500 italic">Aucune adresse de facturation</p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => openAddressForm('billing')}
+                          className="mt-3 inline-flex items-center gap-2 text-sm font-medium hover:opacity-80 transition-opacity px-4 py-2 rounded-lg border-2"
+                          style={{ color: '#A0A12F', borderColor: '#A0A12F' }}
+                        >
+                          <Plus className="w-4 h-4" />
+                          Ajouter une adresse de facturation
+                        </button>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-3" style={{ color: '#172867' }}>
+                          Adresse de livraison
+                        </label>
+                        <div className="space-y-2">
+                          {addresses.filter(a => a.is_delivery_address).map((address) => (
+                            <label
+                              key={address.id}
+                              className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                                shippingAddressId === address.id ? 'border-[#172867] bg-[#172867]/5' : 'border-gray-200 hover:border-gray-300'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name="shipping"
+                                value={address.id}
+                                checked={shippingAddressId === address.id}
+                                onChange={(e) => handleShippingAddressChange(e.target.value)}
+                                className="mt-1"
+                                style={{ accentColor: '#172867' }}
+                              />
+                              <div className="flex-1">
+                                <p className="font-medium" style={{ color: '#172867' }}>
+                                  {address.name}
+                                </p>
+                                <p className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
+                                  {address.address_line_1}
+                                  {address.address_line_2 && <><br />{address.address_line_2}</>}
+                                  {address.address_line_3 && <><br />{address.address_line_3}</>}
+                                  {address.address_line_4 && <><br />{address.address_line_4}</>}
+                                  <br />
+                                  {address.postal_code} {address.city}
+                                  <br />
+                                  {address.country_code}
+                                </p>
+                              </div>
+                            </label>
+                          ))}
+                          {addresses.filter(a => a.is_delivery_address).length === 0 && (
+                            <p className="text-sm text-gray-500 italic">Aucune adresse de livraison</p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => openAddressForm('shipping')}
+                          className="mt-3 inline-flex items-center gap-2 text-sm font-medium hover:opacity-80 transition-opacity px-4 py-2 rounded-lg border-2"
+                          style={{ color: '#A0A12F', borderColor: '#A0A12F' }}
+                        >
+                          <Plus className="w-4 h-4" />
+                          Ajouter une adresse de livraison
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -553,6 +853,24 @@ export default function CheckoutPage() {
                   </div>
                 </div>
               )}
+
+              {/* Step 4: Paiement Stripe */}
+              {step === 4 && paymentSheetData && showPaymentForm && (
+                <div className="bg-white rounded-lg border-2 border-gray-100 p-6">
+                  <h2 className="text-xl font-bold mb-6 flex items-center gap-2" style={{ color: '#172867' }}>
+                    <CreditCard className="w-5 h-5" style={{ color: '#A0A12F' }} />
+                    Paiement sécurisé
+                  </h2>
+                  {paymentSheetData.publishableKey && (
+                    <StripePaymentForm
+                      paymentIntent={paymentSheetData.paymentIntent}
+                      orderId={createdOrderId!}
+                      publishableKey={paymentSheetData.publishableKey}
+                      total={total}
+                    />
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Sidebar */}
@@ -588,16 +906,62 @@ export default function CheckoutPage() {
                   >
                     {step === 1 ? 'Continuer' : 'Passer au paiement'}
                   </button>
-                ) : (
-                  <button
-                    onClick={handlePlaceOrder}
-                    disabled={false}
-                    className="w-full py-4 rounded-lg font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ backgroundColor: '#172867' }}
-                  >
-                    {loading ? 'Création de la commande...' : 'Valider la commande'}
-                  </button>
-                )}
+                ) : step === 3 ? (
+                  <div className="space-y-3">
+                    {!orderCreated ? (
+                      <button
+                        onClick={handleCreateOrder}
+                        disabled={loading}
+                        className="w-full py-4 rounded-lg font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        style={{ backgroundColor: '#172867' }}
+                      >
+                        {loading ? (
+                          <>
+                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            Création de la commande...
+                          </>
+                        ) : (
+                          'Continuer'
+                        )}
+                      </button>
+                    ) : (
+                      <>
+                        <div className="text-center mb-3 p-3 rounded-lg bg-green-50 border border-green-200">
+                          <p className="text-sm font-medium" style={{ color: '#059669' }}>
+                            Commande créée avec succès
+                          </p>
+                        </div>
+                        <button
+                          onClick={handlePayWithStripe}
+                          disabled={loading}
+                          className="w-full py-4 rounded-lg font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                          style={{ backgroundColor: '#A0A12F' }}
+                        >
+                          {loading ? (
+                            <>
+                              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              Initialisation du paiement...
+                            </>
+                          ) : (
+                            <>
+                              <CreditCard className="w-5 h-5" />
+                              Payer
+                            </>
+                          )}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ) : step === 4 && orderCreated ? (
+                  <div className="text-center">
+                    <p className="text-sm mb-2" style={{ color: '#172867', opacity: 0.7 }}>
+                      Commande créée avec succès
+                    </p>
+                    <p className="text-xs" style={{ color: '#A0A12F' }}>
+                      Procédez au paiement ci-contre
+                    </p>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
@@ -808,5 +1172,149 @@ export default function CheckoutPage() {
 
       <Footer />
     </div>
+  );
+}
+
+// Composant de paiement Stripe avec Payment Element
+function StripePaymentForm({ 
+  paymentIntent, 
+  orderId, 
+  publishableKey,
+  total
+}: { 
+  paymentIntent: string; 
+  orderId: string; 
+  publishableKey: string;
+  total: number;
+}) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { clearCart } = useCart();
+  const stripePromise = loadStripe(publishableKey);
+
+  if (!stripePromise) {
+    return (
+      <div className="text-center py-8">
+        <p style={{ color: '#172867', opacity: 0.7 }}>Chargement du formulaire de paiement...</p>
+      </div>
+    );
+  }
+
+  return (
+    <Elements
+      stripe={stripePromise}
+      options={{
+        clientSecret: paymentIntent,
+        appearance: {
+          theme: 'stripe' as const,
+        },
+      }}
+    >
+      <PaymentFormContent
+        orderId={orderId}
+        total={total}
+        onSuccess={() => {
+          clearCart();
+          router.push(`/checkout/success?orderId=${orderId}`);
+        }}
+      />
+    </Elements>
+  );
+}
+
+function PaymentFormContent({
+  orderId,
+  total,
+  onSuccess
+}: {
+  orderId: string;
+  total: number;
+  onSuccess: () => void;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!stripe || !elements) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Confirmer le paiement avec Stripe
+      const { error: stripeError, paymentIntent: confirmedIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${typeof window !== 'undefined' ? window.location.origin : ''}/checkout/success?orderId=${orderId}`,
+        },
+        redirect: 'if_required',
+      });
+
+      if (stripeError) {
+        setError(stripeError.message || 'Erreur lors du paiement');
+        setLoading(false);
+        return;
+      }
+
+      if (confirmedIntent?.status === 'succeeded') {
+        // Vérifier le statut du paiement côté backend
+        try {
+          const paymentIntentId = confirmedIntent.id;
+          const statusResponse = await paymentApi.verifyStatus(paymentIntentId);
+          
+          if (statusResponse.status === 'succeeded' || statusResponse.paymentIntent?.status === 'succeeded') {
+            onSuccess();
+          } else {
+            setError('Le paiement n\'a pas été confirmé. Veuillez réessayer.');
+            setLoading(false);
+          }
+        } catch (error: any) {
+          console.error('Failed to verify payment status:', error);
+          // Même si la vérification échoue, on redirige car le paiement Stripe a réussi
+          onSuccess();
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || 'Erreur lors du paiement');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <PaymentElement />
+      
+      {error && (
+        <div className="p-4 rounded-lg bg-red-50 border border-red-200">
+          <p className="text-sm text-red-600">{error}</p>
+        </div>
+      )}
+
+      <button
+        type="submit"
+        disabled={loading || !stripe}
+        className="w-full py-4 rounded-lg font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        style={{ backgroundColor: '#A0A12F' }}
+      >
+        {loading ? (
+          <>
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            Traitement du paiement...
+          </>
+        ) : (
+          <>
+            <CreditCard className="w-5 h-5" />
+            Payer {total.toFixed(2)} €
+          </>
+        )}
+      </button>
+    </form>
   );
 }

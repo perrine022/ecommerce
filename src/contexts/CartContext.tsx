@@ -6,7 +6,7 @@
 
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { CartItem, Product } from '@/types/product';
 import { cartApi } from '@/services/api';
 
@@ -134,6 +134,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const response = await cartApi.getCart();
+      // Vérifier que la réponse contient des items
+      if (!response || !response.items || !Array.isArray(response.items)) {
+        console.warn('Cart response is invalid or empty:', response);
+        setItems([]);
+        saveCartToStorage([]);
+        return;
+      }
+      
       // Convertir les items du backend en CartItem
       // Les produits du backend doivent être mappés vers le format frontend
       const cartItems: CartItem[] = response.items.map((item: any) => {
@@ -143,7 +151,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           : item.product; // Si déjà au format frontend, on l'utilise tel quel
         return {
           product: product,
-          quantity: item.quantity,
+          quantity: item.quantity || 1,
         };
       });
       setItems(cartItems);
@@ -261,7 +269,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const clearCart = async () => {
+  const clearCart = useCallback(async () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
     if (token) {
       try {
@@ -277,7 +285,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setItems([]);
       saveCartToStorage([]);
     }
-  };
+  }, []);
 
   const getTotal = () => {
     return items.reduce((total, item) => total + item.product.price * item.quantity, 0);

@@ -6,19 +6,29 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Package, MapPin, LogOut, Mail, Phone, Building2, Lock, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import { User, Package, MapPin, LogOut, Mail, Phone, Building2, Lock, Eye, EyeOff, Users, Briefcase } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/contexts/AuthContext';
 import { userApi, orderApi, addressApi, authApi } from '@/services/api';
 import { Order } from '@/types/order';
 import { Address, CompanyAddress, CreateCompanyAddressData } from '@/types/address';
+import { UserRole, Client } from '@/types/user';
 
 export default function AccountPage() {
   const router = useRouter();
   const { user, logout, isAuthenticated, loading: authLoading, refreshUser, updateUser } = useAuth();
+  
+  // Calculer si l'utilisateur est commercial
+  const isCommercial = useMemo(() => {
+    if (!user) return false;
+    const userRoles = Array.isArray(user?.role) ? user.role : user?.role ? [user.role] : [];
+    return userRoles.includes('ROLE_COMMERCIAL') || userRoles.includes('ROLE_ADMIN');
+  }, [user]);
+  
   const [activeTab, setActiveTab] = useState('profile');
   const [orders, setOrders] = useState<Order[]>([]);
   const [addresses, setAddresses] = useState<CompanyAddress[]>([]);
@@ -29,6 +39,18 @@ export default function AccountPage() {
       router.push('/connexion');
     }
   }, [isAuthenticated, authLoading, router]);
+
+  // Définir l'onglet actif par défaut pour les commerciaux une fois l'utilisateur chargé
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && isCommercial) {
+      // Si l'utilisateur est commercial et essaie d'accéder à des onglets non autorisés, rediriger vers commercial
+      if (activeTab === 'addresses' || activeTab === 'orders') {
+        setActiveTab('commercial');
+      } else if (activeTab === 'profile') {
+        setActiveTab('commercial');
+      }
+    }
+  }, [authLoading, isAuthenticated, isCommercial, activeTab]);
 
   useEffect(() => {
     if (isAuthenticated && activeTab === 'orders') {
@@ -95,6 +117,19 @@ export default function AccountPage() {
     return null;
   }
 
+  // Pour les commerciaux : Dashboard Commercial, Mon Profil
+  // Pour les autres : Mon Profil, Mes Commandes, Mes Adresses
+  const tabs = isCommercial
+    ? [
+        { id: 'commercial', label: 'Dashboard Commercial', icon: Briefcase },
+        { id: 'profile', label: 'Mon Profil', icon: User },
+      ]
+    : [
+        { id: 'profile', label: 'Mon Profil', icon: User },
+        { id: 'orders', label: 'Mes Commandes', icon: Package },
+        { id: 'addresses', label: 'Mes Adresses', icon: MapPin },
+      ];
+
   return (
     <div className="min-h-screen bg-white">
       <Header />
@@ -102,10 +137,16 @@ export default function AccountPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-8">
             <h1 className="text-3xl md:text-4xl font-bold mb-2" style={{ color: '#172867' }}>
-              Mon Espace <span style={{ color: '#A0A12F' }}>Client</span>
+              {isCommercial ? (
+                <>Mon Espace <span style={{ color: '#A0A12F' }}>Commercial</span></>
+              ) : (
+                <>Mon Espace <span style={{ color: '#A0A12F' }}>Client</span></>
+              )}
             </h1>
             <p className="text-sm" style={{ color: '#172867', opacity: 0.6 }}>
-              Gérez vos informations personnelles, commandes et préférences
+              {isCommercial
+                ? 'Gérez vos clients, commandes et suivez vos performances commerciales'
+                : 'Gérez vos informations personnelles, commandes et préférences'}
             </p>
           </div>
 
@@ -113,11 +154,7 @@ export default function AccountPage() {
             {/* Sidebar */}
             <div className="lg:col-span-1">
               <nav className="space-y-1.5 bg-white rounded-xl border p-2" style={{ borderColor: '#A0A12F' }}>
-                {[
-                  { id: 'profile', label: 'Mon Profil', icon: User },
-                  { id: 'orders', label: 'Mes Commandes', icon: Package },
-                  { id: 'addresses', label: 'Mes Adresses', icon: MapPin },
-                ].map((tab) => (
+                {tabs.map((tab) => (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
@@ -152,6 +189,7 @@ export default function AccountPage() {
               {activeTab === 'profile' && <ProfileTab user={user} />}
               {activeTab === 'orders' && <OrdersTab orders={orders} loading={loading} />}
               {activeTab === 'addresses' && <AddressesTab addresses={addresses} loading={loading} onRefresh={loadAddresses} user={user} />}
+              {activeTab === 'commercial' && isCommercial && <CommercialDashboard />}
             </div>
           </div>
         </div>
@@ -546,48 +584,55 @@ function OrdersTab({ orders, loading }: { orders: Order[]; loading: boolean }) {
           </p>
         </div>
       ) : (
-        orders.map((order) => (
-          <div key={order.id} className="bg-white rounded-xl border p-5 hover:shadow-md transition-shadow" style={{ borderColor: '#A0A12F' }}>
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="font-semibold" style={{ color: '#172867' }}>
-                  Commande #{order.orderNumber}
-                </p>
+        orders.map((order) => {
+          // Calculer le total si non disponible
+          const orderTotal = order.total ?? order.totalAmount ?? 
+            (order.items?.reduce((sum, item) => sum + (item.totalPrice || item.unitPrice * item.quantity), 0) || 0);
+          const orderNumber = order.orderNumber || order.number || order.id.substring(0, 8);
+          
+          return (
+            <div key={order.id} className="bg-white rounded-xl border p-5 hover:shadow-md transition-shadow" style={{ borderColor: '#A0A12F' }}>
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <p className="font-semibold" style={{ color: '#172867' }}>
+                    Commande #{orderNumber}
+                  </p>
                 <p className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
-                  {new Date(order.createdAt).toLocaleDateString('fr-FR')}
+                  {new Date(order.orderDate || order.createdAt || order.updatedAt).toLocaleDateString('fr-FR')}
                 </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-lg" style={{ color: '#A0A12F' }}>
+                    {typeof orderTotal === 'number' ? orderTotal.toFixed(2) : '0.00'} €
+                  </p>
+                  <span
+                    className="inline-block px-3 py-1 rounded-full text-xs font-medium mt-2 text-white"
+                    style={{ backgroundColor: getStatusColor(order.status) }}
+                  >
+                    {getStatusLabel(order.status)}
+                  </span>
+                </div>
               </div>
-              <div className="text-right">
-                <p className="font-bold text-lg" style={{ color: '#A0A12F' }}>
-                  {order.total.toFixed(2)} €
+              <div className="mb-4">
+                <p className="text-sm mb-2" style={{ color: '#172867', opacity: 0.7 }}>
+                  {order.items?.length || 0} article{(order.items?.length || 0) > 1 ? 's' : ''}
                 </p>
-                <span
-                  className="inline-block px-3 py-1 rounded-full text-xs font-medium mt-2 text-white"
-                  style={{ backgroundColor: getStatusColor(order.status) }}
-                >
-                  {getStatusLabel(order.status)}
-                </span>
+                {order.trackingNumber && (
+                  <p className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
+                    Suivi: {order.trackingNumber}
+                  </p>
+                )}
               </div>
+              <a
+                href={`/compte/commande/${order.id}`}
+                className="text-sm font-medium hover:opacity-80 transition-opacity"
+                style={{ color: '#172867' }}
+              >
+                Voir les détails →
+              </a>
             </div>
-            <div className="mb-4">
-              <p className="text-sm mb-2" style={{ color: '#172867', opacity: 0.7 }}>
-                {order.items.length} article{order.items.length > 1 ? 's' : ''}
-              </p>
-              {order.trackingNumber && (
-                <p className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
-                  Suivi: {order.trackingNumber}
-                </p>
-              )}
-            </div>
-            <a
-              href={`/compte/commande/${order.id}`}
-              className="text-sm font-medium hover:opacity-80 transition-opacity"
-              style={{ color: '#172867' }}
-            >
-              Voir les détails →
-            </a>
-          </div>
-        ))
+          );
+        })
       )}
     </div>
   );
@@ -976,6 +1021,439 @@ function AddressForm({ address, onClose, onSuccess, user }: { address: CompanyAd
         </button>
       </div>
     </form>
+  );
+}
+
+// Dashboard Commercial
+function CommercialDashboard() {
+  const [clients, setClients] = useState<Client[]>([]);
+  const [filteredClients, setFilteredClients] = useState<Client[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [clientOrders, setClientOrders] = useState<Order[]>([]);
+  const [clientAddresses, setClientAddresses] = useState<CompanyAddress[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [loadingAddresses, setLoadingAddresses] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    loadClients();
+  }, []);
+
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredClients(clients);
+    } else {
+      const query = searchQuery.toLowerCase();
+      setFilteredClients(
+        clients.filter(
+          (client) =>
+            client.firstName?.toLowerCase().includes(query) ||
+            client.lastName?.toLowerCase().includes(query) ||
+            client.email?.toLowerCase().includes(query) ||
+            client.companyName?.toLowerCase().includes(query)
+        )
+      );
+    }
+  }, [searchQuery, clients]);
+
+  const loadClients = async () => {
+    setLoading(true);
+    try {
+      // L'API retourne directement un tableau de clients
+      const clientsList = await userApi.getCommercialClients();
+      // Mapper les données pour convertir phoneNumber en phone si nécessaire
+      const mappedClients = Array.isArray(clientsList) 
+        ? clientsList.map((client: any) => ({
+            ...client,
+            phone: client.phoneNumber || client.phone, // Utiliser phoneNumber de l'API ou phone si déjà présent
+          }))
+        : [];
+      setClients(mappedClients);
+      setFilteredClients(mappedClients);
+    } catch (error) {
+      console.error('Failed to load clients:', error);
+      setClients([]);
+      setFilteredClients([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadClientOrders = async (clientId: string) => {
+    setLoadingOrders(true);
+    try {
+      // Utiliser le nouvel endpoint GET /api/v1/orders/user/{userId}
+      const orders = await orderApi.getUserOrders(clientId);
+      setClientOrders(Array.isArray(orders) ? orders : []);
+    } catch (error) {
+      console.error('Failed to load client orders:', error);
+      setClientOrders([]);
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
+
+  const loadClientAddresses = async (clientId: string) => {
+    setLoadingAddresses(true);
+    try {
+      const response = await addressApi.getUserAddresses(clientId);
+      setClientAddresses(response.data || []);
+    } catch (error) {
+      console.error('Failed to load client addresses:', error);
+      setClientAddresses([]);
+    } finally {
+      setLoadingAddresses(false);
+    }
+  };
+
+  const handleClientClick = (client: Client) => {
+    setSelectedClient(client);
+    loadClientOrders(client.id);
+    loadClientAddresses(client.id);
+  };
+
+  const handleCreateOrderForClient = (client: Client) => {
+    // Stocker le client sélectionné dans le localStorage pour le checkout
+    localStorage.setItem('selectedClientId', client.id);
+    router.push('/panier');
+  };
+
+  if (selectedClient) {
+    return (
+      <div className="space-y-6">
+        <button
+          onClick={() => {
+            setSelectedClient(null);
+            setClientOrders([]);
+            setClientAddresses([]);
+          }}
+          className="flex items-center gap-2 text-sm font-medium hover:opacity-80 transition-opacity"
+          style={{ color: '#A0A12F' }}
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Retour à la liste des clients
+        </button>
+
+        {/* Informations du client */}
+        <div className="bg-white rounded-xl border p-6 shadow-sm" style={{ borderColor: '#A0A12F' }}>
+          <div className="flex items-start justify-between mb-6">
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold mb-3" style={{ color: '#172867' }}>
+                {selectedClient.companyName || `${selectedClient.firstName} ${selectedClient.lastName}`}
+              </h2>
+              
+              <div className="grid md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: '#172867', opacity: 0.6 }}>
+                    Email
+                  </p>
+                  <p className="text-sm" style={{ color: '#172867' }}>
+                    {selectedClient.email}
+                  </p>
+                </div>
+                {selectedClient.phone && (
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: '#172867', opacity: 0.6 }}>
+                      Téléphone
+                    </p>
+                    <p className="text-sm" style={{ color: '#172867' }}>
+                      {selectedClient.phone}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Adresses du client */}
+              {loadingAddresses ? (
+                <div className="mt-4">
+                  <p className="text-sm" style={{ color: '#172867', opacity: 0.6 }}>Chargement des adresses...</p>
+                </div>
+              ) : clientAddresses.length > 0 ? (
+                <div className="mt-4">
+                  <p className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: '#172867', opacity: 0.6 }}>
+                    Adresses
+                  </p>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    {clientAddresses.map((address) => (
+                      <div
+                        key={address.id}
+                        className="p-3 rounded-lg border"
+                        style={{ borderColor: 'rgba(160, 161, 47, 0.3)', backgroundColor: 'rgba(160, 161, 47, 0.02)' }}
+                      >
+                        <p className="font-medium text-sm mb-1" style={{ color: '#172867' }}>
+                          {address.name}
+                        </p>
+                        <p className="text-xs" style={{ color: '#172867', opacity: 0.7 }}>
+                          {address.address_line_1}
+                          {address.address_line_2 && <><br />{address.address_line_2}</>}
+                          {address.address_line_3 && <><br />{address.address_line_3}</>}
+                          {address.address_line_4 && <><br />{address.address_line_4}</>}
+                          <br />
+                          {address.postal_code} {address.city}
+                          <br />
+                          {address.country_code}
+                        </p>
+                        <div className="flex gap-2 mt-2">
+                          {address.is_invoicing_address && (
+                            <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: '#172867', color: 'white' }}>
+                              Facturation
+                            </span>
+                          )}
+                          {address.is_delivery_address && (
+                            <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: '#A0A12F', color: 'white' }}>
+                              Livraison
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            <div className="ml-6">
+              <button
+                onClick={() => handleCreateOrderForClient(selectedClient)}
+                className="px-6 py-3 rounded-lg font-semibold text-white transition-all hover:opacity-90 hover:shadow-md whitespace-nowrap"
+                style={{ backgroundColor: '#A0A12F' }}
+              >
+                Créer une commande
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Historique des commandes */}
+        <div className="bg-white rounded-xl border p-6 shadow-sm" style={{ borderColor: '#A0A12F' }}>
+          <h3 className="text-xl font-bold mb-4" style={{ color: '#172867' }}>
+            Historique des commandes
+          </h3>
+          {loadingOrders ? (
+            <div className="text-center py-8">
+              <p style={{ color: '#172867', opacity: 0.6 }}>Chargement des commandes...</p>
+            </div>
+          ) : clientOrders.length === 0 ? (
+            <div className="text-center py-8">
+              <p style={{ color: '#172867', opacity: 0.6 }}>Aucune commande pour ce client</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {clientOrders.map((order) => {
+                const orderDate = order.date || order.orderDate || order.createdAt || order.updatedAt;
+                const orderNumber = order.number || order.orderNumber || order.id.substring(0, 8);
+                const orderTotal = order.totalAmount || order.total || 0;
+                const orderStatus = order.status || 'UNKNOWN';
+                
+                return (
+                  <div
+                    key={order.id}
+                    className="border rounded-lg p-5 hover:shadow-md transition-shadow"
+                    style={{ borderColor: 'rgba(160, 161, 47, 0.3)' }}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <p className="font-semibold text-lg" style={{ color: '#172867' }}>
+                            Commande #{orderNumber}
+                          </p>
+                          <span
+                            className="px-3 py-1 rounded-full text-xs font-semibold"
+                            style={{
+                              backgroundColor:
+                                orderStatus === 'VALIDATED' || orderStatus === 'delivered'
+                                  ? '#10b981'
+                                  : orderStatus === 'processing' || orderStatus === 'shipped'
+                                  ? '#3b82f6'
+                                  : orderStatus === 'PENDING' || orderStatus === 'pending'
+                                  ? '#f59e0b'
+                                  : '#6b7280',
+                              color: 'white',
+                            }}
+                          >
+                            {orderStatus === 'VALIDATED'
+                              ? 'Validée'
+                              : orderStatus === 'PENDING'
+                              ? 'En attente'
+                              : orderStatus === 'processing'
+                              ? 'En traitement'
+                              : orderStatus === 'shipped'
+                              ? 'Expédiée'
+                              : orderStatus === 'delivered'
+                              ? 'Livrée'
+                              : orderStatus}
+                          </span>
+                        </div>
+                        <p className="text-sm mb-3" style={{ color: '#172867', opacity: 0.7 }}>
+                          {orderDate ? new Date(orderDate).toLocaleDateString('fr-FR', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          }) : 'Date non disponible'}
+                        </p>
+                        
+                        {/* Détails des articles */}
+                        {order.items && order.items.length > 0 && (
+                          <div className="mt-3 pt-3 border-t" style={{ borderColor: 'rgba(160, 161, 47, 0.2)' }}>
+                            <p className="text-xs font-medium mb-2 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.6 }}>
+                              Articles ({order.items.length})
+                            </p>
+                            <div className="space-y-1">
+                              {order.items.map((item: any, index: number) => {
+                                // Essayer plusieurs champs possibles pour le nom du produit
+                                const productName = 
+                                  item.product?.name || 
+                                  item.productName || 
+                                  item.name || 
+                                  item.description || 
+                                  item.title || 
+                                  'Produit';
+                                
+                                return (
+                                  <div key={item.id || index} className="flex justify-between text-sm">
+                                    <span style={{ color: '#172867', opacity: 0.8 }}>
+                                      {productName} x {item.quantity}
+                                    </span>
+                                    <span style={{ color: '#172867' }}>
+                                      {((item.unitPrice || 0) * (item.quantity || 1)).toFixed(2)} €
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Lien PDF si disponible */}
+                        {order.pdfLink && (
+                          <div className="mt-3">
+                            <a
+                              href={order.pdfLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm font-medium hover:opacity-80 transition-opacity inline-flex items-center gap-1"
+                              style={{ color: '#A0A12F' }}
+                            >
+                              Voir le PDF →
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-right ml-4">
+                        <p className="font-bold text-xl mb-2" style={{ color: '#A0A12F' }}>
+                          {orderTotal.toFixed(2)} €
+                        </p>
+                        {order.currency && order.currency !== 'eur' && (
+                          <p className="text-xs" style={{ color: '#172867', opacity: 0.6 }}>
+                            {order.currency.toUpperCase()}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Statistiques */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white rounded-xl border p-6 shadow-sm" style={{ borderColor: '#A0A12F' }}>
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#A0A12F', opacity: 0.1 }}>
+              <Users className="w-6 h-6" style={{ color: '#A0A12F' }} />
+            </div>
+            <div>
+              <p className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
+                Total Clients
+              </p>
+              <p className="text-2xl font-bold" style={{ color: '#172867' }}>
+                {clients.length}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recherche */}
+      <div className="bg-white rounded-xl border p-6 shadow-sm" style={{ borderColor: '#A0A12F' }}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#A0A12F', opacity: 0.1 }}>
+            <Briefcase className="w-5 h-5" style={{ color: '#A0A12F' }} />
+          </div>
+          <h2 className="text-xl font-bold" style={{ color: '#172867' }}>
+            Mes Clients
+          </h2>
+        </div>
+
+        <div className="mb-6">
+          <input
+            type="text"
+            placeholder="Rechercher un client (nom, email, entreprise)..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-offset-1"
+            style={{ borderColor: '#A0A12F', color: '#172867' }}
+          />
+        </div>
+
+        {loading ? (
+          <div className="text-center py-8">
+            <p style={{ color: '#172867', opacity: 0.6 }}>Chargement des clients...</p>
+          </div>
+        ) : filteredClients.length === 0 ? (
+          <div className="text-center py-8">
+            <p style={{ color: '#172867', opacity: 0.6 }}>
+              {searchQuery ? 'Aucun client trouvé' : 'Aucun client'}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredClients.map((client) => (
+              <div
+                key={client.id}
+                onClick={() => handleClientClick(client)}
+                className="border rounded-lg p-4 hover:shadow-md transition-all cursor-pointer"
+                style={{ borderColor: 'rgba(160, 161, 47, 0.3)' }}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg mb-1" style={{ color: '#172867' }}>
+                      {client.companyName || `${client.firstName} ${client.lastName}`}
+                    </h3>
+                    <p className="text-sm mb-2" style={{ color: '#172867', opacity: 0.7 }}>
+                      {client.email}
+                    </p>
+                    {client.phone && (
+                      <p className="text-sm" style={{ color: '#172867', opacity: 0.6 }}>
+                        {client.phone}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCreateOrderForClient(client);
+                    }}
+                    className="ml-4 px-4 py-2 rounded-lg font-semibold text-white transition-all hover:opacity-90 text-sm"
+                    style={{ backgroundColor: '#A0A12F' }}
+                  >
+                    Commande
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

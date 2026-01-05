@@ -5,7 +5,7 @@
  */
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://ecommerce-back-kmqe.onrender.com";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 class ApiError extends Error {
   constructor(message: string, public status: number, public data?: any) {
@@ -44,7 +44,36 @@ async function request<T>(
     );
   }
 
-  return response.json();
+  // Vérifier si la réponse a du contenu avant de parser le JSON
+  const contentType = response.headers.get("content-type");
+  const contentLength = response.headers.get("content-length");
+  
+  // Si la réponse est vide (204 No Content) ou n'a pas de contenu JSON
+  if (
+    response.status === 204 ||
+    contentLength === "0" ||
+    !contentType?.includes("application/json")
+  ) {
+    // Vérifier si le body est vraiment vide
+    const text = await response.text();
+    if (!text || text.trim() === "") {
+      return {} as T;
+    }
+    // Essayer de parser le texte comme JSON
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      return {} as T;
+    }
+  }
+
+  try {
+    return await response.json();
+  } catch (error) {
+    // Si le parsing JSON échoue, retourner un objet vide
+    console.warn(`Failed to parse JSON response from ${endpoint}:`, error);
+    return {} as T;
+  }
 }
 
 // Fonction de mapping pour transformer les produits du backend vers le format frontend
@@ -109,7 +138,10 @@ export const authApi = {
     type?: "INDIVIDUAL" | "COMPANY";
     companyName?: string;
     phone?: string;
-    siren?: string;
+    siret?: string;
+    vatNumber?: string;
+    rcs?: string;
+    legalForm?: string;
   }) =>
     request<{ token: string }>("/api/v1/auth/register", {
       method: "POST",
@@ -186,6 +218,16 @@ export const userApi = {
     request<{ message: string }>(`/api/v1/users/${id}`, {
       method: "DELETE",
     }),
+
+  // GET /api/v1/users/{id} - Récupère un utilisateur par son ID
+  getById: (id: string) => request<any>(`/api/v1/users/${id}`),
+
+  // GET /api/v1/users/commercial/clients - Récupère tous les clients d'un commercial
+  // Retourne directement un tableau de clients
+  getCommercialClients: () => request<any[]>("/api/v1/users/commercial/clients"),
+
+  // GET /api/v1/users/{clientId}/orders - Récupère les commandes d'un client spécifique
+  getClientOrders: (clientId: string) => request<{ orders: any[] }>(`/api/v1/users/${clientId}/orders`),
 };
 
 // Product endpoints
@@ -372,14 +414,23 @@ export const orderApi = {
   },
 
   // POST /api/v1/orders - Finalise une commande et l'envoie à Sellsy
-  // Transforme le panier actuel en commande, enregistre les adresses et envoie à Sellsy V2
-  createOrder: (data: { invoicingAddressId: number | string; deliveryAddressId: number | string }) =>
+  // Crée une commande avec les items, adresses et optionnellement un clientId pour les commerciaux
+  createOrder: (data: { 
+    invoicingAddressId: number | string; 
+    deliveryAddressId: number | string;
+    clientId?: string; // ID du client pour les commerciaux (UUID)
+    items: Array<{
+      productId: string; // UUID du produit
+      quantity: number; // Quantité (Integer)
+    }>;
+  }) =>
     request<{
       id: string;
       status: string;
       totalAmount: number;
       sellsyOrderId?: string;
       number?: string;
+      validationCode?: string; // Code de validation à 4 chiffres
       invoicingAddressId: number | string;
       deliveryAddressId: number | string;
       [key: string]: any;
@@ -404,6 +455,17 @@ export const orderApi = {
       method: "PUT",
       body: JSON.stringify(data),
     }),
+
+  // GET /api/v1/orders/user/{userId} - Récupère toutes les commandes d'un utilisateur spécifique
+  getUserOrders: async (userId: string) => {
+    const response = await request<any>(`/api/v1/orders/user/${userId}`);
+    // L'API retourne directement un tableau de commandes
+    if (Array.isArray(response)) {
+      return response;
+    }
+    // Sinon, retourner le tableau depuis la structure de réponse
+    return response.orders || response.data || [];
+  },
 
   // Endpoints non documentés mais potentiellement utiles
   syncFromSellsy: () =>
@@ -645,6 +707,31 @@ export const shippingApi = {
 
 // Payment endpoints (Stripe)
 export const paymentApi = {
+  // POST /api/v1/payment/payment-sheet - Crée un Payment Sheet Stripe
+  createPaymentSheet: (data: {
+    amount: number; // Montant en centimes
+    currency: string; // "eur"
+    userId?: string; // Optionnel si déjà authentifié
+    description: string; // Description de la commande
+  }) =>
+    request<{
+      paymentIntent: string; // Secret du PaymentIntent
+      ephemeralKey: string; // Clé temporaire pour le client
+      customer: string; // ID du client Stripe
+      publishableKey: string; // Clé publique Stripe
+    }>("/api/v1/payment/payment-sheet", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // GET /api/v1/payment/public-key - Récupère la clé publique Stripe
+  getPublicKey: () =>
+    request<{ publishableKey: string }>("/api/v1/payment/public-key"),
+
+  // GET /api/v1/payment/verify-status/{paymentIntentId} - Vérifie le statut du paiement
+  verifyStatus: (paymentIntentId: string) =>
+    request<{ status: string; paymentIntent: any }>(`/api/v1/payment/verify-status/${paymentIntentId}`),
+
   confirmPayment: (paymentIntentId: string) =>
     request<{ order: any }>("/api/v1/payments/confirm", {
       method: "POST",

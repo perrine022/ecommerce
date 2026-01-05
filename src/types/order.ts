@@ -15,21 +15,30 @@ export interface OrderItem {
   productImage?: string;
   quantity: number;
   unitPrice: number;
-  totalPrice: number;
+  totalPrice?: number;
+  product?: {
+    id: string;
+    name: string;
+    reference?: string;
+  };
 }
 
 export interface Order {
   id: string;
-  orderNumber: string;
+  orderNumber?: string;
+  number?: string; // Format "CMD-2026-001"
   userId: string;
-  status: OrderStatus;
+  status: OrderStatus | string; // Support aussi "PAID" du backend
   items: OrderItem[];
-  subtotal: number;
-  shippingCost: number;
+  subtotal?: number;
+  shippingCost?: number;
   tax?: number;
-  total: number;
-  billingAddress: Address;
-  shippingAddress: Address;
+  total?: number;
+  totalAmount?: number; // Format backend
+  billingAddress?: Address;
+  shippingAddress?: Address;
+  invoicingAddressId?: number;
+  deliveryAddressId?: number;
   paymentMethod?: string;
   paymentStatus?: 'pending' | 'paid' | 'failed' | 'refunded';
   stripePaymentIntentId?: string;
@@ -38,8 +47,11 @@ export interface Order {
   sellsyInvoiceId?: string;
   trackingNumber?: string;
   notes?: string;
-  createdAt: string;
-  updatedAt: string;
+  orderDate: string; // Date de création (remplace createdAt)
+  updatedAt: string; // Date de dernière modification
+  createdAt?: string; // Conservé pour compatibilité
+  validationCode?: string; // Code de validation à 4 chiffres
+  isValidated?: boolean; // Indique si la commande est validée
 }
 
 export interface CreateOrderData {

@@ -110,10 +110,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <div className="flex justify-between items-start mb-6">
               <div>
                 <h1 className="text-2xl font-bold mb-2" style={{ color: '#172867' }}>
-                  Commande #{order.orderNumber}
+                  Commande #{order.number || order.orderNumber || order.id.substring(0, 8)}
                 </h1>
                 <p className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
-                  Passée le {new Date(order.createdAt).toLocaleDateString('fr-FR', {
+                  Passée le {new Date(order.orderDate || order.createdAt || order.updatedAt).toLocaleDateString('fr-FR', {
                     day: 'numeric',
                     month: 'long',
                     year: 'numeric',
@@ -121,6 +121,22 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                     minute: '2-digit',
                   })}
                 </p>
+                {order.updatedAt && order.orderDate && order.updatedAt !== order.orderDate && (
+                  <p className="text-xs mt-1" style={{ color: '#172867', opacity: 0.5 }}>
+                    Modifiée le {new Date(order.updatedAt).toLocaleDateString('fr-FR', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </p>
+                )}
+                {order.validationCode && (
+                  <p className="text-xs mt-1 font-semibold" style={{ color: '#A0A12F' }}>
+                    Code de validation : {order.validationCode}
+                  </p>
+                )}
               </div>
               <span
                 className="inline-block px-4 py-2 rounded-full text-sm font-medium text-white"
@@ -143,69 +159,110 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
           <div className="grid md:grid-cols-2 gap-6 mb-6">
             {/* Adresse de livraison */}
-            <div className="bg-white rounded-lg border-2 border-gray-100 p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Truck className="w-5 h-5" style={{ color: '#A0A12F' }} />
-                <h2 className="font-semibold" style={{ color: '#172867' }}>Adresse de livraison</h2>
+            {order.shippingAddress && (
+              <div className="bg-white rounded-lg border-2 border-gray-100 p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Truck className="w-5 h-5" style={{ color: '#A0A12F' }} />
+                  <h2 className="font-semibold" style={{ color: '#172867' }}>Adresse de livraison</h2>
+                </div>
+                <div className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
+                  {(order.shippingAddress.firstName || order.shippingAddress.lastName) && (
+                    <p className="font-medium">
+                      {order.shippingAddress.firstName || ''} {order.shippingAddress.lastName || ''}
+                    </p>
+                  )}
+                  {order.shippingAddress.company && <p>{order.shippingAddress.company}</p>}
+                  {order.shippingAddress.addressLine1 && <p>{order.shippingAddress.addressLine1}</p>}
+                  {order.shippingAddress.address_line_1 && <p>{order.shippingAddress.address_line_1}</p>}
+                  {order.shippingAddress.addressLine2 && <p>{order.shippingAddress.addressLine2}</p>}
+                  {order.shippingAddress.address_line_2 && <p>{order.shippingAddress.address_line_2}</p>}
+                  {(order.shippingAddress.postalCode || order.shippingAddress.postal_code) && (
+                    <p>
+                      {order.shippingAddress.postalCode || order.shippingAddress.postal_code} {order.shippingAddress.city || ''}
+                    </p>
+                  )}
+                  {order.shippingAddress.country && <p>{order.shippingAddress.country}</p>}
+                  {order.shippingAddress.country_code && <p>{order.shippingAddress.country_code}</p>}
+                  {order.shippingAddress.phone && <p>{order.shippingAddress.phone}</p>}
+                </div>
               </div>
-              <div className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
-                <p className="font-medium">{order.shippingAddress.firstName} {order.shippingAddress.lastName}</p>
-                {order.shippingAddress.company && <p>{order.shippingAddress.company}</p>}
-                <p>{order.shippingAddress.addressLine1}</p>
-                {order.shippingAddress.addressLine2 && <p>{order.shippingAddress.addressLine2}</p>}
-                <p>{order.shippingAddress.postalCode} {order.shippingAddress.city}</p>
-                <p>{order.shippingAddress.country}</p>
-                {order.shippingAddress.phone && <p>{order.shippingAddress.phone}</p>}
-              </div>
-            </div>
+            )}
 
             {/* Adresse de facturation */}
-            <div className="bg-white rounded-lg border-2 border-gray-100 p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <MapPin className="w-5 h-5" style={{ color: '#A0A12F' }} />
-                <h2 className="font-semibold" style={{ color: '#172867' }}>Adresse de facturation</h2>
+            {order.billingAddress && (
+              <div className="bg-white rounded-lg border-2 border-gray-100 p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <MapPin className="w-5 h-5" style={{ color: '#A0A12F' }} />
+                  <h2 className="font-semibold" style={{ color: '#172867' }}>Adresse de facturation</h2>
+                </div>
+                <div className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
+                  {(order.billingAddress.firstName || order.billingAddress.lastName) && (
+                    <p className="font-medium">
+                      {order.billingAddress.firstName || ''} {order.billingAddress.lastName || ''}
+                    </p>
+                  )}
+                  {order.billingAddress.company && <p>{order.billingAddress.company}</p>}
+                  {order.billingAddress.addressLine1 && <p>{order.billingAddress.addressLine1}</p>}
+                  {order.billingAddress.address_line_1 && <p>{order.billingAddress.address_line_1}</p>}
+                  {order.billingAddress.addressLine2 && <p>{order.billingAddress.addressLine2}</p>}
+                  {order.billingAddress.address_line_2 && <p>{order.billingAddress.address_line_2}</p>}
+                  {(order.billingAddress.postalCode || order.billingAddress.postal_code) && (
+                    <p>
+                      {order.billingAddress.postalCode || order.billingAddress.postal_code} {order.billingAddress.city || ''}
+                    </p>
+                  )}
+                  {order.billingAddress.country && <p>{order.billingAddress.country}</p>}
+                  {order.billingAddress.country_code && <p>{order.billingAddress.country_code}</p>}
+                  {order.billingAddress.phone && <p>{order.billingAddress.phone}</p>}
+                </div>
               </div>
-              <div className="text-sm" style={{ color: '#172867', opacity: 0.7 }}>
-                <p className="font-medium">{order.billingAddress.firstName} {order.billingAddress.lastName}</p>
-                {order.billingAddress.company && <p>{order.billingAddress.company}</p>}
-                <p>{order.billingAddress.addressLine1}</p>
-                {order.billingAddress.addressLine2 && <p>{order.billingAddress.addressLine2}</p>}
-                <p>{order.billingAddress.postalCode} {order.billingAddress.city}</p>
-                <p>{order.billingAddress.country}</p>
-                {order.billingAddress.phone && <p>{order.billingAddress.phone}</p>}
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Articles */}
           <div className="bg-white rounded-lg border-2 border-gray-100 p-6 mb-6">
             <h2 className="font-semibold mb-4" style={{ color: '#172867' }}>Articles commandés</h2>
             <div className="space-y-4">
-              {order.items.map((item) => (
-                <div key={item.id} className="flex gap-4 pb-4 border-b border-gray-100 last:border-0">
-                  {item.productImage && (
-                    <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
-                      <Image
-                        src={item.productImage}
-                        alt={item.productName}
-                        fill
-                        className="object-cover"
-                      />
+              {order.items?.map((item) => {
+                const productName = item.product?.name || item.productName || 'Produit';
+                const productImage = item.productImage;
+                const totalPrice = typeof item.totalPrice === 'number' 
+                  ? item.totalPrice 
+                  : typeof item.unitPrice === 'number' && typeof item.quantity === 'number'
+                  ? item.unitPrice * item.quantity
+                  : 0;
+                
+                return (
+                  <div key={item.id} className="flex gap-4 pb-4 border-b border-gray-100 last:border-0">
+                    {productImage && (
+                      <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
+                        <Image
+                          src={productImage}
+                          alt={productName}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <h3 className="font-semibold mb-1" style={{ color: '#172867' }}>
+                        {productName}
+                      </h3>
+                      {item.product?.reference && (
+                        <p className="text-xs mb-1" style={{ color: '#172867', opacity: 0.5 }}>
+                          Réf: {item.product.reference}
+                        </p>
+                      )}
+                      <p className="text-sm mb-2" style={{ color: '#172867', opacity: 0.7 }}>
+                        Quantité: {item.quantity} × {typeof item.unitPrice === 'number' ? item.unitPrice.toFixed(2) : '0.00'} €
+                      </p>
+                      <p className="font-semibold" style={{ color: '#A0A12F' }}>
+                        {totalPrice.toFixed(2)} €
+                      </p>
                     </div>
-                  )}
-                  <div className="flex-1">
-                    <h3 className="font-semibold mb-1" style={{ color: '#172867' }}>
-                      {item.productName}
-                    </h3>
-                    <p className="text-sm mb-2" style={{ color: '#172867', opacity: 0.7 }}>
-                      Quantité: {item.quantity}
-                    </p>
-                    <p className="font-semibold" style={{ color: '#A0A12F' }}>
-                      {item.totalPrice.toFixed(2)} €
-                    </p>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -213,17 +270,21 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           <div className="bg-white rounded-lg border-2 border-gray-100 p-6">
             <h2 className="font-semibold mb-4" style={{ color: '#172867' }}>Récapitulatif</h2>
             <div className="space-y-2 mb-4">
-              <div className="flex justify-between text-sm">
-                <span style={{ color: '#172867', opacity: 0.7 }}>Sous-total</span>
-                <span style={{ color: '#172867' }}>{order.subtotal.toFixed(2)} €</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span style={{ color: '#172867', opacity: 0.7 }}>Livraison</span>
-                <span style={{ color: '#172867' }}>
-                  {order.shippingCost === 0 ? 'Gratuite' : `${order.shippingCost.toFixed(2)} €`}
-                </span>
-              </div>
-              {order.tax && (
+              {typeof order.subtotal === 'number' && (
+                <div className="flex justify-between text-sm">
+                  <span style={{ color: '#172867', opacity: 0.7 }}>Sous-total</span>
+                  <span style={{ color: '#172867' }}>{order.subtotal.toFixed(2)} €</span>
+                </div>
+              )}
+              {typeof order.shippingCost === 'number' && (
+                <div className="flex justify-between text-sm">
+                  <span style={{ color: '#172867', opacity: 0.7 }}>Livraison</span>
+                  <span style={{ color: '#172867' }}>
+                    {order.shippingCost === 0 ? 'Gratuite' : `${order.shippingCost.toFixed(2)} €`}
+                  </span>
+                </div>
+              )}
+              {order.tax && typeof order.tax === 'number' && (
                 <div className="flex justify-between text-sm">
                   <span style={{ color: '#172867', opacity: 0.7 }}>TVA</span>
                   <span style={{ color: '#172867' }}>{order.tax.toFixed(2)} €</span>
@@ -233,7 +294,11 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <div className="flex justify-between pt-4 border-t border-gray-200">
               <span className="font-bold text-lg" style={{ color: '#172867' }}>Total</span>
               <span className="font-bold text-xl" style={{ color: '#A0A12F' }}>
-                {order.total.toFixed(2)} €
+                {typeof order.total === 'number' 
+                  ? order.total.toFixed(2) 
+                  : typeof order.totalAmount === 'number'
+                  ? order.totalAmount.toFixed(2)
+                  : '0.00'} €
               </span>
             </div>
           </div>
