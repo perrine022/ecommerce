@@ -37,13 +37,23 @@ export default function LoginPage() {
       await login(formData);
       router.push('/');
     } catch (err: any) {
-      // Détecter l'erreur 403 (compte non activé)
-      if (err.status === 403) {
+      // Ne montrer le message "compte non activé" que si le message d'erreur indique explicitement un problème d'activation
+      // Pour les identifiants incorrects (même si le compte est actif), afficher uniquement "identifiants invalides"
+      const errorMessage = err.message || err.data?.message || '';
+      const isAccountNotActivated = err.status === 403 && (
+        errorMessage.toLowerCase().includes('actif') ||
+        errorMessage.toLowerCase().includes('activation') ||
+        errorMessage.toLowerCase().includes('validation') ||
+        errorMessage.toLowerCase().includes('en attente')
+      );
+      
+      if (isAccountNotActivated) {
         setErrorType('account_not_activated');
         setError('Votre compte est en attente de validation');
       } else {
+        // Pour tous les autres cas (identifiants incorrects, erreurs diverses), afficher "identifiants invalides"
         setErrorType('default');
-        setError(err.message || 'Erreur lors de la connexion');
+        setError('Les identifiants saisis ne sont pas valides');
       }
     } finally {
       setLoading(false);

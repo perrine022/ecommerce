@@ -142,42 +142,42 @@ export default function ProductsSection() {
           </div>
 
           {showFilters && (
-            <div className="bg-white rounded-lg border p-6 grid md:grid-cols-4 gap-4" style={{ borderColor: '#A0A12F', opacity: 0.2 }}>
+            <div className="bg-white rounded-lg border-2 p-6 grid md:grid-cols-4 gap-4 shadow-sm" style={{ borderColor: '#A0A12F' }}>
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
+                <label className="block text-sm font-semibold mb-2" style={{ color: '#172867' }}>
                   Prix min (€)
                 </label>
                 <input
                   type="number"
                   value={filters.minPrice}
                   onChange={(e) => setFilters({ ...filters, minPrice: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1"
-                  style={{ borderColor: '#172867', color: '#172867' }}
+                  className="w-full px-4 py-2.5 border-2 rounded-lg focus:outline-none focus:ring-2 bg-white"
+                  style={{ borderColor: '#A0A12F', color: '#172867' }}
                   placeholder="0"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
+                <label className="block text-sm font-semibold mb-2" style={{ color: '#172867' }}>
                   Prix max (€)
                 </label>
                 <input
                   type="number"
                   value={filters.maxPrice}
                   onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1"
-                  style={{ borderColor: '#172867', color: '#172867' }}
+                  className="w-full px-4 py-2.5 border-2 rounded-lg focus:outline-none focus:ring-2 bg-white"
+                  style={{ borderColor: '#A0A12F', color: '#172867' }}
                   placeholder="1000"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
+                <label className="block text-sm font-semibold mb-2" style={{ color: '#172867' }}>
                   Trier par
                 </label>
                 <select
                   value={filters.sortBy}
                   onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1"
-                  style={{ borderColor: '#172867', color: '#172867' }}
+                  className="w-full px-4 py-2.5 border-2 rounded-lg focus:outline-none focus:ring-2 bg-white"
+                  style={{ borderColor: '#A0A12F', color: '#172867' }}
                 >
                   <option value="name">Nom</option>
                   <option value="price">Prix</option>
@@ -186,14 +186,14 @@ export default function ProductsSection() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: '#172867' }}>
+                <label className="block text-sm font-semibold mb-2" style={{ color: '#172867' }}>
                   Ordre
                 </label>
                 <select
                   value={filters.order}
                   onChange={(e) => setFilters({ ...filters, order: e.target.value as 'asc' | 'desc' })}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-1"
-                  style={{ borderColor: '#172867', color: '#172867' }}
+                  className="w-full px-4 py-2.5 border-2 rounded-lg focus:outline-none focus:ring-2 bg-white"
+                  style={{ borderColor: '#A0A12F', color: '#172867' }}
                 >
                   <option value="asc">Croissant</option>
                   <option value="desc">Décroissant</option>

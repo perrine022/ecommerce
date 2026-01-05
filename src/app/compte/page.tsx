@@ -57,6 +57,7 @@ export default function AccountPage() {
       loadOrders();
     }
     if (isAuthenticated && activeTab === 'addresses') {
+      console.log('🔍 [COMPTE] Loading addresses for tab:', activeTab);
       loadAddresses();
     }
   }, [isAuthenticated, activeTab]);
@@ -76,16 +77,26 @@ export default function AccountPage() {
   const loadAddresses = async () => {
     setLoading(true);
     try {
-      if (!user?.id) {
-        console.error('No userId found for user');
-        setAddresses([]);
-        return;
+      // Utiliser le nouvel endpoint GET /api/v1/users/addresses (sans userId)
+      const addressesList = await addressApi.getUserAddresses();
+      console.log('🔍 [COMPTE] Addresses received from API:', addressesList);
+      console.log('🔍 [COMPTE] Is array?', Array.isArray(addressesList));
+      
+      // Gérer différents formats de réponse
+      let addressesArray: CompanyAddress[] = [];
+      if (Array.isArray(addressesList)) {
+        addressesArray = addressesList;
+      } else if (addressesList?.data && Array.isArray(addressesList.data)) {
+        addressesArray = addressesList.data;
+      } else if (addressesList?.addresses && Array.isArray(addressesList.addresses)) {
+        addressesArray = addressesList.addresses;
       }
-      // Utiliser le nouvel endpoint basé sur userId
-      const response = await addressApi.getUserAddresses(user.id);
-      setAddresses(response.data || []);
+      
+      console.log('🔍 [COMPTE] Final addresses array:', addressesArray);
+      console.log('🔍 [COMPTE] Number of addresses:', addressesArray.length);
+      setAddresses(addressesArray);
     } catch (error) {
-      console.error('Failed to load addresses:', error);
+      console.error('❌ [COMPTE] Failed to load addresses:', error);
       setAddresses([]);
     } finally {
       setLoading(false);
@@ -200,11 +211,12 @@ export default function AccountPage() {
 }
 
 function ProfileTab({ user }: { user: any }) {
+  const { refreshUser } = useAuth();
   const [formData, setFormData] = useState({
     email: user?.email || '',
     companyName: user?.firstName || user?.companyName || '', // firstName contient le nom de société pour les entreprises
     siren: user?.siren || '',
-    phone: user?.phone || '',
+    phone: user?.mobileNumber || user?.phone || '', // Utiliser mobileNumber en priorité
   });
   const [passwordData, setPasswordData] = useState({
     oldPassword: '',
@@ -220,18 +232,29 @@ function ProfileTab({ user }: { user: any }) {
   const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
+  // Mettre à jour le formulaire quand l'utilisateur change (après refreshUser)
+  useEffect(() => {
+    setFormData({
+      email: user?.email || '',
+      companyName: user?.firstName || user?.companyName || '',
+      siren: user?.siren || '',
+      phone: user?.mobileNumber || user?.phone || '', // Utiliser mobileNumber en priorité
+    });
+  }, [user]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setMessage(null);
 
     try {
-      // PUT /api/v1/users/profile n'accepte que firstName et lastName selon la doc
-      // Pour les entreprises, on utilise firstName pour le nom de société
+      // PUT /api/v1/users/profile accepte firstName, lastName, phoneNumber, mobileNumber, civility, website
+      // Le nom de la société ne peut pas être modifié, on envoie uniquement le mobileNumber
       await userApi.updateProfile({
-        firstName: formData.companyName,
-        lastName: '', // Pas de lastName pour une société
+        mobileNumber: formData.phone || undefined, // Envoyer mobileNumber au backend
       });
+      // Rafraîchir les données utilisateur pour afficher le mobileNumber mis à jour
+      await refreshUser();
       setMessage({ type: 'success', text: 'Profil mis à jour avec succès' });
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message || 'Erreur lors de la mise à jour' });
@@ -340,27 +363,26 @@ function ProfileTab({ user }: { user: any }) {
 
           <div>
             <label className="block text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: '#172867', opacity: 0.7 }}>
-              Nom de la société <span className="text-red-500">*</span>
+              Nom de la société
             </label>
             <div className="relative">
               <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                <Building2 className="w-4 h-4 transition-colors" style={{ color: focusedField === 'companyName' ? '#A0A12F' : '#172867', opacity: focusedField === 'companyName' ? 0.8 : 0.4 }} />
+                <Building2 className="w-4 h-4 transition-colors" style={{ color: '#172867', opacity: 0.4 }} />
               </div>
               <input
                 type="text"
-                required
                 value={formData.companyName}
-                onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                disabled
                 onFocus={() => setFocusedField('companyName')}
                 onBlur={() => setFocusedField(null)}
-                className="w-full pl-10 pr-4 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white"
-                style={{
-                  borderColor: focusedField === 'companyName' ? '#A0A12F' : 'rgba(160, 161, 47, 0.3)',
-                  color: '#172867',
-                }}
+                className="w-full pl-10 pr-4 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-gray-50 cursor-not-allowed"
+                style={{ borderColor: 'rgba(160, 161, 47, 0.3)', color: '#172867' }}
                 placeholder="Nom de votre entreprise"
               />
             </div>
+            <p className="mt-1.5 text-xs" style={{ color: '#172867', opacity: 0.5 }}>
+              Le nom de la société ne peut pas être modifié
+            </p>
           </div>
 
           <div>
@@ -374,7 +396,11 @@ function ProfileTab({ user }: { user: any }) {
               <input
                 type="tel"
                 value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                onChange={(e) => {
+                  // Ne garder que les chiffres
+                  const numericValue = e.target.value.replace(/\D/g, '');
+                  setFormData({ ...formData, phone: numericValue });
+                }}
                 onFocus={() => setFocusedField('phone')}
                 onBlur={() => setFocusedField(null)}
                 className="w-full pl-10 pr-4 py-3 rounded-lg border transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 bg-white"
@@ -382,7 +408,7 @@ function ProfileTab({ user }: { user: any }) {
                   borderColor: focusedField === 'phone' ? '#A0A12F' : 'rgba(160, 161, 47, 0.3)',
                   color: '#172867',
                 }}
-                placeholder="06 12 34 56 78"
+                placeholder="0612345678"
               />
             </div>
           </div>
@@ -642,6 +668,13 @@ function AddressesTab({ addresses, loading, onRefresh, user }: { addresses: Comp
   const [showForm, setShowForm] = useState(false);
   const [editingAddress, setEditingAddress] = useState<CompanyAddress | null>(null);
 
+  // Log pour déboguer
+  useEffect(() => {
+    console.log('🔍 [AddressesTab] Addresses received:', addresses);
+    console.log('🔍 [AddressesTab] Number of addresses:', addresses?.length);
+    console.log('🔍 [AddressesTab] Loading:', loading);
+  }, [addresses, loading]);
+
   if (loading) {
     return (
       <div className="bg-white rounded-lg border-2 border-gray-100 p-6">
@@ -675,6 +708,7 @@ function AddressesTab({ addresses, loading, onRefresh, user }: { addresses: Comp
       {showForm && (
         <AddressForm
           address={editingAddress}
+          allAddresses={addresses}
           user={user}
           onClose={() => {
             setShowForm(false);
@@ -687,19 +721,24 @@ function AddressesTab({ addresses, loading, onRefresh, user }: { addresses: Comp
           }}
         />
       )}
-      {addresses.length === 0 ? (
+      {!addresses || addresses.length === 0 ? (
         <p style={{ color: '#172867', opacity: 0.7 }}>
           Vous n'avez pas encore d'adresse enregistrée.
         </p>
       ) : (
         <div className="grid md:grid-cols-2 gap-4">
-          {addresses.map((address) => (
-            <div key={address.id} className="border rounded-xl p-4 hover:shadow-md transition-shadow" style={{ borderColor: '#A0A12F' }}>
+          {addresses.map((address, index) => (
+            <div key={address.id || `address-${index}`} className="border rounded-xl p-4 hover:shadow-md transition-shadow" style={{ borderColor: '#A0A12F' }}>
               <div className="flex justify-between items-start mb-2">
                 <h3 className="font-semibold" style={{ color: '#172867' }}>
                   {address.name}
                 </h3>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
+                  {address.is_default_address && (
+                    <span className="text-xs px-2 py-1 rounded font-medium" style={{ backgroundColor: '#A0A12F', color: 'white' }}>
+                      Défaut
+                    </span>
+                  )}
                   {address.is_invoicing_address && (
                     <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: '#172867', color: 'white' }}>
                       Facturation
@@ -737,11 +776,9 @@ function AddressesTab({ addresses, loading, onRefresh, user }: { addresses: Comp
                   onClick={async () => {
                     if (confirm('Êtes-vous sûr de vouloir supprimer cette adresse ?')) {
                       try {
-                        if (user?.id) {
-                          // Utiliser le nouvel endpoint basé sur userId
-                          await addressApi.deleteUserAddress(user.id, address.id);
-                          onRefresh();
-                        }
+                        // Utiliser le nouvel endpoint DELETE /api/v1/users/addresses/{addressId}
+                        await addressApi.deleteUserAddress(address.id);
+                        onRefresh();
                       } catch (error) {
                         console.error('Failed to delete address:', error);
                         alert('Erreur lors de la suppression');
@@ -762,7 +799,7 @@ function AddressesTab({ addresses, loading, onRefresh, user }: { addresses: Comp
   );
 }
 
-function AddressForm({ address, onClose, onSuccess, user }: { address: CompanyAddress | null; onClose: () => void; onSuccess: () => void; user: any }) {
+function AddressForm({ address, allAddresses, onClose, onSuccess, user }: { address: CompanyAddress | null; allAddresses: CompanyAddress[]; onClose: () => void; onSuccess: () => void; user: any }) {
   const { user: currentUser, refreshUser, updateUser } = useAuth();
   const [formData, setFormData] = useState<CreateCompanyAddressData>({
     name: address?.name || '',
@@ -775,54 +812,84 @@ function AddressForm({ address, onClose, onSuccess, user }: { address: CompanyAd
     country_code: address?.country_code || 'FR',
     is_invoicing_address: address?.is_invoicing_address || false,
     is_delivery_address: address?.is_delivery_address || false,
+    is_default_address: address?.is_default_address || false,
     geocode: address?.geocode,
   });
   const [saving, setSaving] = useState(false);
 
+  // Vérifier s'il existe déjà une adresse par défaut (en excluant l'adresse actuelle si on est en mode édition)
+  const hasDefaultAddress = allAddresses.some(addr => 
+    addr.id !== address?.id && addr.is_default_address === true
+  );
+
+  // Logique pour les checkboxes :
+  // - Si aucune adresse par défaut n'existe (ni ailleurs, ni dans celle qu'on édite), 
+  //   on ne peut cocher que "défaut" (facturation/livraison désactivées)
+  // - Si une adresse par défaut existe ailleurs, on ne peut pas cocher "défaut" 
+  //   mais on peut cocher facturation/livraison
+  // - Si cette adresse est elle-même en défaut, on peut cocher facturation/livraison
+  const canCheckDefault = !hasDefaultAddress;
+  // On peut cocher facturation/livraison SEULEMENT si :
+  // 1. Il existe une adresse par défaut ailleurs, OU
+  // 2. Cette adresse est elle-même cochée comme défaut
+  const canCheckInvoicingOrDelivery = hasDefaultAddress || formData.is_default_address === true;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('🚀 [COMPTE] handleSaveAddress called');
+    console.log('🚀 [COMPTE] Form data:', formData);
     
-    // Essayer de récupérer l'ID utilisateur
-    let userId = currentUser?.id || user?.id;
-    
-    if (!userId) {
-      // Rafraîchir l'utilisateur
-      await refreshUser();
-      await new Promise(resolve => setTimeout(resolve, 300));
-      userId = currentUser?.id || user?.id;
-    }
-    
-    if (!userId) {
-      // Récupérer directement depuis l'API
-      try {
-        const userResponse = await authApi.getCurrentUser();
-        const freshUser = userResponse.user || userResponse;
-        userId = freshUser?.id || freshUser?.userId;
-        
-        console.log('🔍 [COMPTE] User data from API:', freshUser);
-        console.log('🔍 [COMPTE] UserId found:', userId);
-        
-        // Mettre à jour l'utilisateur dans le contexte
-        if (freshUser && !currentUser?.id && userId && currentUser) {
-          updateUser({ ...currentUser, id: userId });
-        }
-        
-        if (!userId) {
-          console.error('❌ [COMPTE] No userId found in user data:', freshUser);
-          alert('Erreur : Impossible de récupérer votre identifiant utilisateur. Veuillez vous déconnecter et vous reconnecter, ou contacter le support.');
+    setSaving(true);
+    try {
+      // Récupérer l'ID utilisateur - essayer d'abord depuis le contexte, sinon depuis l'API
+      let userId = currentUser?.id || user?.id;
+      console.log('🔍 [COMPTE] Initial userId from user:', userId);
+      
+      if (!userId) {
+        console.log('🔄 [COMPTE] Refreshing user...');
+        // Rafraîchir l'utilisateur depuis le contexte
+        await refreshUser();
+        // Attendre un court instant pour que le state se mette à jour
+        await new Promise(resolve => setTimeout(resolve, 300));
+        // Re-récupérer l'utilisateur depuis le contexte après refresh
+        userId = currentUser?.id || user?.id;
+        console.log('🔍 [COMPTE] UserId after refresh:', userId);
+      }
+      
+      if (!userId) {
+        console.log('🔄 [COMPTE] Fetching user directly from API...');
+        // Si toujours pas d'userId, récupérer directement depuis l'API
+        try {
+          const userResponse = await authApi.getCurrentUser();
+          const freshUser = userResponse.user || userResponse;
+          
+          userId = freshUser?.id || freshUser?.userId;
+          
+          console.log('🔍 [COMPTE] User data from API:', freshUser);
+          console.log('🔍 [COMPTE] UserId found:', userId);
+          console.log('🔍 [COMPTE] Available user fields:', Object.keys(freshUser || {}));
+          
+          // Mettre à jour l'utilisateur dans le contexte avec les données fraîches
+          if (freshUser && !currentUser?.id && userId && currentUser) {
+            updateUser({ ...currentUser, id: userId });
+          }
+          
+          if (!userId) {
+            console.error('❌ [COMPTE] No userId found in user data:', freshUser);
+            alert('Erreur : Impossible de récupérer votre identifiant utilisateur. Veuillez vous déconnecter et vous reconnecter, ou contacter le support.');
+            setSaving(false);
+            return;
+          }
+        } catch (error) {
+          console.error('❌ [COMPTE] Failed to get user:', error);
+          alert('Erreur : Impossible de récupérer les informations de votre compte. Veuillez réessayer.');
+          setSaving(false);
           return;
         }
-      } catch (error) {
-        console.error('Failed to get user:', error);
-        alert('Erreur : Impossible de récupérer les informations de votre compte. Veuillez réessayer.');
-        return;
       }
-    }
 
-    setSaving(true);
-
-    try {
       // S'assurer que tous les champs texte optionnels sont initialisés à "" comme requis par Sellsy
+      // Le backend gère maintenant is_invoicing_address, is_delivery_address et is_default_address localement
       const payload: CreateCompanyAddressData = {
         name: formData.name,
         address_line_1: formData.address_line_1,
@@ -834,20 +901,35 @@ function AddressForm({ address, onClose, onSuccess, user }: { address: CompanyAd
         country_code: formData.country_code,
         is_invoicing_address: formData.is_invoicing_address,
         is_delivery_address: formData.is_delivery_address,
+        is_default_address: formData.is_default_address || false,
         ...(formData.geocode && { geocode: formData.geocode }),
       };
 
+      console.log('📝 [COMPTE] Address data:', payload);
+      console.log('📝 [COMPTE] Calling API...');
+
       if (address) {
-        // Utiliser le nouvel endpoint basé sur userId
-        await addressApi.updateUserAddress(userId, address.id, payload);
+        // Utiliser le nouvel endpoint PUT /api/v1/users/addresses/{addressId} (sans userId)
+        const updatedAddress = await addressApi.updateUserAddress(address.id, payload);
+        console.log('✅ [COMPTE] Address updated successfully:', updatedAddress);
       } else {
-        // Utiliser le nouvel endpoint basé sur userId
-        await addressApi.createUserAddress(userId, payload);
+        // Utiliser le nouvel endpoint POST /api/v1/users/addresses (sans userId)
+        const newAddress = await addressApi.createUserAddress(payload);
+        console.log('✅ [COMPTE] Address created successfully:', newAddress);
       }
+      
+      console.log('✅ [COMPTE] Address saved successfully');
       onSuccess();
-    } catch (error) {
-      console.error('Failed to save address:', error);
-      alert('Erreur lors de la sauvegarde');
+    } catch (error: any) {
+      console.error('❌ [COMPTE] Failed to save address:', error);
+      console.error('❌ [COMPTE] Error details:', {
+        message: error?.message,
+        status: error?.status,
+        data: error?.data,
+        stack: error?.stack
+      });
+      const errorMessage = error?.message || error?.data?.message || 'Erreur lors de la sauvegarde de l\'adresse';
+      alert(`Erreur : ${errorMessage}`);
     } finally {
       setSaving(false);
     }
@@ -976,31 +1058,66 @@ function AddressForm({ address, onClose, onSuccess, user }: { address: CompanyAd
           maxLength={2}
         />
       </div>
-      <div className="flex items-center gap-4">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={formData.is_invoicing_address}
-            onChange={(e) => setFormData({ ...formData, is_invoicing_address: e.target.checked })}
-            className="w-5 h-5"
-            style={{ accentColor: '#A0A12F' }}
-          />
-          <span className="text-sm" style={{ color: '#172867' }}>
-            Adresse de facturation
-          </span>
-        </label>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={formData.is_delivery_address}
-            onChange={(e) => setFormData({ ...formData, is_delivery_address: e.target.checked })}
-            className="w-5 h-5"
-            style={{ accentColor: '#A0A12F' }}
-          />
-          <span className="text-sm" style={{ color: '#172867' }}>
-            Adresse de livraison
-          </span>
-        </label>
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-4 flex-wrap">
+          <label className={`flex items-center gap-2 ${canCheckDefault ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
+            <input
+              type="checkbox"
+              checked={formData.is_default_address || false}
+              disabled={!canCheckDefault}
+              onChange={(e) => {
+                const newValue = e.target.checked;
+                setFormData({ 
+                  ...formData, 
+                  is_default_address: newValue,
+                  // Si on décoche "défaut", décocher aussi facturation et livraison
+                  ...(newValue === false ? { is_invoicing_address: false, is_delivery_address: false } : {})
+                });
+              }}
+              className="w-5 h-5"
+              style={{ accentColor: '#A0A12F' }}
+            />
+            <span className="text-sm font-medium" style={{ color: '#172867' }}>
+              Adresse par défaut
+            </span>
+          </label>
+          <label className={`flex items-center gap-2 ${canCheckInvoicingOrDelivery ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
+            <input
+              type="checkbox"
+              checked={formData.is_invoicing_address}
+              disabled={!canCheckInvoicingOrDelivery}
+              onChange={(e) => setFormData({ ...formData, is_invoicing_address: e.target.checked })}
+              className="w-5 h-5"
+              style={{ accentColor: '#A0A12F' }}
+            />
+            <span className="text-sm" style={{ color: '#172867' }}>
+              Adresse de facturation
+            </span>
+          </label>
+          <label className={`flex items-center gap-2 ${canCheckInvoicingOrDelivery ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
+            <input
+              type="checkbox"
+              checked={formData.is_delivery_address}
+              disabled={!canCheckInvoicingOrDelivery}
+              onChange={(e) => setFormData({ ...formData, is_delivery_address: e.target.checked })}
+              className="w-5 h-5"
+              style={{ accentColor: '#A0A12F' }}
+            />
+            <span className="text-sm" style={{ color: '#172867' }}>
+              Adresse de livraison
+            </span>
+          </label>
+        </div>
+        {!canCheckDefault && (
+          <p className="text-xs" style={{ color: '#172867', opacity: 0.6 }}>
+            Une adresse par défaut existe déjà. Vous devez d'abord retirer le statut "défaut" de l'autre adresse.
+          </p>
+        )}
+        {!canCheckInvoicingOrDelivery && (
+          <p className="text-xs" style={{ color: '#172867', opacity: 0.6 }}>
+            Vous devez d'abord définir une adresse par défaut avant de pouvoir cocher facturation ou livraison.
+          </p>
+        )}
       </div>
       <div className="flex gap-2">
         <button
@@ -1195,7 +1312,12 @@ function CommercialDashboard() {
                           <br />
                           {address.country_code}
                         </p>
-                        <div className="flex gap-2 mt-2">
+                        <div className="flex gap-2 mt-2 flex-wrap">
+                          {address.is_default_address && (
+                            <span className="text-xs px-2 py-0.5 rounded font-medium" style={{ backgroundColor: '#A0A12F', color: 'white' }}>
+                              Défaut
+                            </span>
+                          )}
                           {address.is_invoicing_address && (
                             <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: '#172867', color: 'white' }}>
                               Facturation

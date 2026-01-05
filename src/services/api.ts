@@ -199,7 +199,15 @@ export const userApi = {
   getProfile: () => request<any>("/api/v1/users/profile"),
 
   // PUT /api/v1/users/profile - Met à jour le profil
-  updateProfile: (data: { firstName?: string; lastName?: string }) =>
+  // Accepte: firstName, lastName, phoneNumber, mobileNumber, civility, website
+  updateProfile: (data: { 
+    firstName?: string; 
+    lastName?: string;
+    phoneNumber?: string;
+    mobileNumber?: string;
+    civility?: string;
+    website?: string;
+  }) =>
     request<any>("/api/v1/users/profile", {
       method: "PUT",
       body: JSON.stringify(data),
@@ -607,15 +615,14 @@ export const addressApi = {
     }),
 
   // ===== NOUVEAUX ENDPOINTS BASÉS SUR USER ID =====
-  // Récupérer les adresses d'un utilisateur
-  // Endpoint: GET /api/v1/addresses/user/{userId}
-  getUserAddresses: (userId: string) =>
-    request<{ data: any[]; total?: number }>(`/api/v1/addresses/user/${userId}`),
+  // Récupérer les adresses de l'utilisateur connecté
+  // Endpoint: GET /api/v1/users/addresses
+  getUserAddresses: () =>
+    request<any[]>("/api/v1/users/addresses"),
 
-  // Créer une adresse pour un utilisateur
-  // Endpoint: POST /api/v1/addresses/user/{userId}
-  // Le backend récupère automatiquement le sellsyId et le sellsyType de l'utilisateur
-  createUserAddress: (userId: string, data: {
+  // Créer une adresse pour l'utilisateur connecté
+  // Endpoint: POST /api/v1/users/addresses
+  createUserAddress: (data: {
     name: string;
     address_line_1: string;
     address_line_2?: string;
@@ -624,8 +631,8 @@ export const addressApi = {
     postal_code: string;
     city: string;
     country_code: string;
-    is_invoicing_address: boolean;
-    is_delivery_address: boolean;
+    is_invoicing_address?: boolean;
+    is_delivery_address?: boolean;
     geocode?: { lat: number; lng: number };
   }) => {
     const payload = {
@@ -637,20 +644,20 @@ export const addressApi = {
       postal_code: data.postal_code,
       city: data.city,
       country_code: data.country_code,
-      is_invoicing_address: data.is_invoicing_address,
-      is_delivery_address: data.is_delivery_address,
+      ...(data.is_invoicing_address !== undefined && { is_invoicing_address: data.is_invoicing_address }),
+      ...(data.is_delivery_address !== undefined && { is_delivery_address: data.is_delivery_address }),
       ...(data.geocode && { geocode: data.geocode }),
     };
     
-    return request<any>(`/api/v1/addresses/user/${userId}`, {
+    return request<any>("/api/v1/users/addresses", {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
 
-  // Mettre à jour une adresse d'utilisateur
-  // Endpoint: PUT /api/v1/addresses/user/{userId}/{addressId}
-  updateUserAddress: (userId: string, addressId: string | number, data: {
+  // Mettre à jour une adresse de l'utilisateur connecté
+  // Endpoint: PUT /api/v1/users/addresses/{addressId}
+  updateUserAddress: (addressId: string | number, data: {
     name: string;
     address_line_1: string;
     address_line_2?: string;
@@ -659,8 +666,8 @@ export const addressApi = {
     postal_code: string;
     city: string;
     country_code: string;
-    is_invoicing_address: boolean;
-    is_delivery_address: boolean;
+    is_invoicing_address?: boolean;
+    is_delivery_address?: boolean;
     geocode?: { lat: number; lng: number };
   }) => {
     const payload = {
@@ -672,21 +679,21 @@ export const addressApi = {
       postal_code: data.postal_code,
       city: data.city,
       country_code: data.country_code,
-      is_invoicing_address: data.is_invoicing_address,
-      is_delivery_address: data.is_delivery_address,
+      ...(data.is_invoicing_address !== undefined && { is_invoicing_address: data.is_invoicing_address }),
+      ...(data.is_delivery_address !== undefined && { is_delivery_address: data.is_delivery_address }),
       ...(data.geocode && { geocode: data.geocode }),
     };
     
-    return request<any>(`/api/v1/addresses/user/${userId}/${String(addressId)}`, {
+    return request<any>(`/api/v1/users/addresses/${String(addressId)}`, {
       method: "PUT",
       body: JSON.stringify(payload),
     });
   },
 
-  // Supprimer une adresse d'utilisateur
-  // Endpoint: DELETE /api/v1/addresses/user/{userId}/{addressId}
-  deleteUserAddress: (userId: string, addressId: string | number) =>
-    request<{ message: string }>(`/api/v1/addresses/user/${userId}/${String(addressId)}`, {
+  // Supprimer une adresse de l'utilisateur connecté
+  // Endpoint: DELETE /api/v1/users/addresses/{addressId}
+  deleteUserAddress: (addressId: string | number) =>
+    request<{ message: string }>(`/api/v1/users/addresses/${String(addressId)}`, {
       method: "DELETE",
     }),
 };

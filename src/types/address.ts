@@ -19,7 +19,7 @@ export interface Address {
 
 // Nouveau format pour les adresses d'entreprise (Sellsy)
 export interface CompanyAddress {
-  id: string;
+  id: string | number; // Peut être un nombre (ID Sellsy) ou une string (UUID)
   name: string;
   address_line_1: string;
   address_line_2?: string;
@@ -28,11 +28,13 @@ export interface CompanyAddress {
   postal_code: string;
   city: string;
   country_code: string;
+  country?: string; // Optionnel, peut être présent dans la réponse
   is_invoicing_address: boolean;
   is_delivery_address: boolean;
+  is_default_address?: boolean; // Indique si c'est l'adresse par défaut
   geocode?: {
-    lat: number;
-    lng: number;
+    lat: number | null;
+    lng: number | null;
   };
 }
 
@@ -47,6 +49,7 @@ export interface CreateCompanyAddressData {
   country_code: string;
   is_invoicing_address: boolean;
   is_delivery_address: boolean;
+  is_default_address?: boolean; // Indique si c'est l'adresse par défaut
   geocode?: {
     lat: number;
     lng: number;
