@@ -5,7 +5,10 @@
  */
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+  process.env.NEXT_PUBLIC_API_URL || 
+  (process.env.NODE_ENV === 'production' 
+    ? "https://ecommerce-back-kmqe.onrender.com" 
+    : "http://localhost:8080");
 
 class ApiError extends Error {
   constructor(message: string, public status: number, public data?: any) {
